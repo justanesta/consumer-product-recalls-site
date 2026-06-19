@@ -1,0 +1,8 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import FirmProfileViewer from '@/components/firms/FirmProfileViewer';
+---
+
+<Layout title="Firm" noindex={true}>
+  <FirmProfileViewer client:only="react" />
+</Layout>

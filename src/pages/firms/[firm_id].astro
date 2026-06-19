@@ -1,0 +1,32 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import FirmProfile from '@/components/firms/FirmProfile';
+import FirmRecalls from '@/components/firms/FirmRecalls';
+import { getFirm, getFirmLeaderboard, withRetry } from '@/lib/api';
+import type { FirmProfile as FirmProfileType } from '@/lib/api/firms';
+
+// Pre-render the most-recalled firms; the long tail is served by /firm-view.
+export async function getStaticPaths() {
+  const leaders = await withRetry(() => getFirmLeaderboard({ limit: 8 }));
+  const profiles = await Promise.all(leaders.map((l) => withRetry(() => getFirm(l.firm_id))));
+  return profiles.map((profile) => ({ params: { firm_id: profile.firm_id }, props: { profile } }));
+}
+
+interface Props {
+  profile: FirmProfileType;
+}
+const { profile } = Astro.props as Props;
+---
+
+<Layout
+  title={profile.canonical_name}
+  description={`Recalls and profile for ${profile.canonical_name}.`}
+>
+  <FirmProfile profile={profile} />
+  <section class="mt-8 max-w-3xl">
+    <h2 class="text-lg font-semibold">This firm's recalls</h2>
+    <div class="mt-2">
+      <FirmRecalls client:visible firmId={profile.firm_id} />
+    </div>
+  </section>
+</Layout>

@@ -12,3 +12,6 @@ project_scope
 
 # Vendored geodata
 public/geo
+
+# Cloudflare Pages config (no prettier parser)
+public/_redirects
