@@ -1,0 +1,19 @@
+---
+interface Props {
+  title?: string;
+  tone?: 'info' | 'warn';
+  class?: string;
+}
+
+const { title, tone = 'info', class: className = '' } = Astro.props;
+
+const TONE: Record<'info' | 'warn', string> = {
+  info: 'border-brand/30 bg-brand/5',
+  warn: 'border-amber-500/40 bg-amber-50 dark:bg-amber-950/20',
+};
+---
+
+<aside class:list={['rounded-lg border p-4 text-sm', TONE[tone], className]}>
+  {title && <p class="font-semibold text-ink">{title}</p>}
+  <div class:list={['text-muted', title && 'mt-1']}><slot /></div>
+</aside>

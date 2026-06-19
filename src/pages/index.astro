@@ -1,17 +1,107 @@
 ---
 import Layout from '@/layouts/Layout.astro';
+import KpiStat from '@/components/KpiStat.astro';
+import Callout from '@/components/Callout.astro';
+import AreaTrendChart from '@/components/charts/AreaTrendChart';
+import SourceTotalsChart from '@/components/charts/SourceTotalsChart';
+import ClassificationFacetChart from '@/components/charts/ClassificationFacetChart';
+import { getByClassification, getRecallsByPeriod, getStatsOverview, withRetry } from '@/lib/api';
+import { classificationBySource, monthlyTrend, perSourceTotals } from '@/lib/charts/transforms';
+import { formatDate, formatNumber } from '@/lib/format';
+
+// Build-time pull of the slow-moving aggregates (retried hard; fails the build loudly).
+const [overview, byPeriod, byClass] = await Promise.all([
+  withRetry(() => getStatsOverview()),
+  withRetry(() => getRecallsByPeriod({ grain: 'month' })),
+  withRetry(() => getByClassification()),
+]);
+
+const trend = monthlyTrend(byPeriod, { source: 'ALL', sinceYear: 2012 });
+const sourceTotals = perSourceTotals(byClass);
+const classification = classificationBySource(byClass);
 ---
 
-<Layout title="Consumer Product Recalls">
-  <section class="mx-auto max-w-prose">
-    <h1 class="text-4xl font-bold">Consumer Product Recalls</h1>
+<Layout
+  title="Consumer Product Recalls"
+  description="Search and explore U.S. consumer product recalls across CPSC, FDA, USDA, NHTSA, and USCG — one unified, honest view."
+>
+  <section class="max-w-prose">
+    <h1 class="text-4xl font-bold sm:text-5xl">Consumer product recalls, in one place</h1>
     <p class="mt-4 text-lg text-muted">
-      A unified, searchable view of U.S. consumer product recalls across five federal sources —
-      CPSC, FDA, USDA, NHTSA, and USCG.
+      A unified, searchable view of U.S. consumer product recalls across five federal sources.
+      Browse and filter every recall, check whether a product was recalled, and explore the trends —
+      drawn live from a public data pipeline.
     </p>
-    <p class="mt-6 text-muted">
-      Site scaffold is live. Pages are under construction — see the
-      <a href="/methodology">methodology</a> for what this data is and isn't.
-    </p>
+    <div class="mt-6 flex flex-wrap gap-3">
+      <a
+        href="/search"
+        class="rounded-md bg-brand px-4 py-2 font-medium text-white no-underline hover:opacity-90"
+        >Is my product recalled?</a
+      >
+      <a
+        href="/recalls"
+        class="rounded-md border border-line px-4 py-2 font-medium text-ink no-underline hover:bg-surface"
+        >Browse all recalls</a
+      >
+    </div>
+  </section>
+
+  <section class="mt-10">
+    <h2 class="sr-only">Headline figures</h2>
+    <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <KpiStat label="Total recalls" value={formatNumber(overview.total_recalls)} />
+      <KpiStat label="Distinct firms" value={formatNumber(overview.distinct_firms)} />
+      <KpiStat
+        label="Sources"
+        value={overview.sources.length}
+        hint={overview.sources.join(' · ')}
+      />
+      <KpiStat label="Data updated" value={formatDate(overview.last_rebuilt_at)} hint="UTC" />
+    </dl>
+  </section>
+
+  <section class="mt-12">
+    <h2 class="text-2xl font-bold">Recalls over time</h2>
+    <p class="mt-1 text-sm text-muted">All sources combined, by month (since 2012).</p>
+    <AreaTrendChart
+      client:visible
+      data={trend}
+      title="Recalls per month across all sources since 2012"
+      caption="Monthly count of recall events across all five sources. The latest month is partial."
+    />
+  </section>
+
+  <section class="mt-12">
+    <h2 class="text-2xl font-bold">By source</h2>
+    <p class="mt-1 text-sm text-muted">Total recalls contributed by each agency feed.</p>
+    <SourceTotalsChart
+      client:visible
+      data={sourceTotals}
+      title="Total recalls by source"
+      caption="Counts reflect each agency's reporting scope and history, not relative product risk."
+    />
+  </section>
+
+  <section class="mt-12">
+    <h2 class="text-2xl font-bold">By classification</h2>
+    <p class="mt-1 text-sm text-muted">Each agency's own severity vocabulary — shown separately.</p>
+    <ClassificationFacetChart
+      client:visible
+      data={classification}
+      title="Recalls by source-native classification, faceted by source"
+      caption="Classifications are source-native (FDA 1/2/3/NC, USDA Class I/II/III, USCG H/L/M/S; CPSC/NHTSA carry none) and are NOT comparable across sources."
+    />
+  </section>
+
+  <section class="mt-12 max-w-prose">
+    <Callout title="What this data is — and isn't">
+      <p>
+        These five feeds use different vocabularies, scopes, and lifecycles. We keep them
+        source-native rather than forcing a false common scale: classifications aren't comparable
+        across agencies, recall geography has
+        <a href="/methodology">two distinct lenses</a>, and counts reflect reporting practices, not
+        product risk. Read the <a href="/methodology">methodology &amp; caveats</a> before drawing conclusions.
+      </p>
+    </Callout>
   </section>
 </Layout>
