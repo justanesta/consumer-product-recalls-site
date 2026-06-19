@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* RGB channels so Tailwind's <alpha-value> opacity modifiers work */
+    --color-paper: 251 250 248;
+    --color-surface: 255 255 255;
+    --color-ink: 26 24 20;
+    --color-muted: 90 87 82;
+    --color-line: 226 222 215;
+    --color-brand: 30 64 124; /* deep, official blue */
+  }
+
+  .dark {
+    --color-paper: 17 18 16;
+    --color-surface: 28 29 27;
+    --color-ink: 237 235 231;
+    --color-muted: 161 158 152;
+    --color-line: 56 56 52;
+    --color-brand: 138 168 224;
+  }
+
+  html {
+    @apply bg-paper font-sans text-ink antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif tracking-tight;
+    text-wrap: balance;
+  }
+
+  a {
+    @apply text-brand underline underline-offset-2;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

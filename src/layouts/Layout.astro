@@ -1,0 +1,115 @@
+---
+import '@/styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  noindex?: boolean;
+}
+
+const SITE_NAME = 'Recall Lookup';
+const {
+  title = SITE_NAME,
+  description = 'Search and explore U.S. consumer product recalls across CPSC, FDA, USDA, NHTSA, and USCG — one unified, honest view.',
+  ogImage,
+  noindex = false,
+} = Astro.props;
+
+const fullTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : Astro.url.pathname;
+
+const nav = [
+  { href: '/recalls', label: 'Recalls' },
+  { href: '/search', label: 'Search' },
+  { href: '/dashboards', label: 'Dashboards' },
+  { href: '/methodology', label: 'Methodology' },
+  { href: '/api', label: 'API' },
+];
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="canonical" href={canonical} />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Set theme before first paint to avoid a flash of the wrong theme. -->
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem('theme');
+        const dark = stored
+          ? stored === 'dark'
+          : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', dark);
+      })();
+    </script>
+  </head>
+  <body class="flex min-h-screen flex-col">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-brand focus:px-3 focus:py-2 focus:text-white"
+      >Skip to content</a
+    >
+    <header class="border-b border-line">
+      <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
+        <a href="/" class="font-serif text-lg font-bold no-underline">Recall&nbsp;Lookup</a>
+        <nav aria-label="Primary" class="hidden gap-5 text-sm sm:flex">
+          {
+            nav.map((item) => (
+              <a href={item.href} class="text-muted no-underline hover:text-ink">
+                {item.label}
+              </a>
+            ))
+          }
+        </nav>
+        <button
+          id="theme-toggle"
+          type="button"
+          aria-label="Toggle dark mode"
+          class="rounded border border-line px-2 py-1 text-sm leading-none"
+        >
+          🌓
+        </button>
+      </div>
+    </header>
+
+    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <slot />
+    </main>
+
+    <footer class="border-t border-line text-sm text-muted">
+      <div class="mx-auto w-full max-w-6xl px-4 py-6">
+        <p>
+          Data aggregated from CPSC, FDA, USDA, NHTSA, and USCG. Not affiliated with any agency. See
+          <a href="/methodology">methodology &amp; caveats</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script is:inline>
+      document.getElementById('theme-toggle')?.addEventListener('click', () => {
+        const dark = !document.documentElement.classList.contains('dark');
+        document.documentElement.classList.toggle('dark', dark);
+        localStorage.setItem('theme', dark ? 'dark' : 'light');
+      });
+    </script>
+  </body>
+</html>

@@ -6,3 +6,24 @@
 
 # Local-only project notes
 CLAUDE.local.md
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.astro/
+
+# Test / coverage
+coverage/
+test-results/
+playwright-report/
+
+# Env (only .env.example is committed)
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+*.log

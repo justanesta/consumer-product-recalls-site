@@ -21,17 +21,17 @@ judged on data-viz quality, data honesty, accessibility, and a clean DE/SWE narr
 
 ## 2. Locked decisions (from the up-front conferral)
 
-| Decision | Choice |
-|---|---|
-| Framework | **Astro** (static-first, islands), **React** islands for interactive widgets |
-| Hosting | **Cloudflare Pages** (free static `dist/`, unlimited bandwidth, no cold start) |
-| Charts | **Observable Plot** default; **D3** only for the U.S. choropleth |
-| API client | **Generated** from `openapi.json` (`openapi-typescript` + `openapi-fetch`), never hand-typed |
-| Styling | **Tailwind CSS** + a single design-token layer; **dark mode** toggle |
-| Visual direction | **Public-interest / editorial** — restrained palette, strong typography, data-first |
-| Scope | **Full v1 inventory**, built in a phased ladder (a working site deploys early) |
-| Extras (in scope) | Public **API-docs page** (Starlight), **recall-search** mode, **dark mode**, **Playwright E2E**, About/Methodology page, consolidated **data-caveats** page, **RSS** of latest recalls, privacy-friendly analytics |
-| Data fetching inside islands | **TanStack Query** (caching + retry/cold-start states); **Zod** for runtime response validation at trust boundaries |
+| Decision                     | Choice                                                                                                                                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Framework                    | **Astro** (static-first, islands), **React** islands for interactive widgets                                                                                                                                       |
+| Hosting                      | **Cloudflare Pages** (free static `dist/`, unlimited bandwidth, no cold start)                                                                                                                                     |
+| Charts                       | **Observable Plot** default; **D3** only for the U.S. choropleth                                                                                                                                                   |
+| API client                   | **Generated** from `openapi.json` (`openapi-typescript` + `openapi-fetch`), never hand-typed                                                                                                                       |
+| Styling                      | **Tailwind CSS** + a single design-token layer; **dark mode** toggle                                                                                                                                               |
+| Visual direction             | **Public-interest / editorial** — restrained palette, strong typography, data-first                                                                                                                                |
+| Scope                        | **Full v1 inventory**, built in a phased ladder (a working site deploys early)                                                                                                                                     |
+| Extras (in scope)            | Public **API-docs page** (Starlight), **recall-search** mode, **dark mode**, **Playwright E2E**, About/Methodology page, consolidated **data-caveats** page, **RSS** of latest recalls, privacy-friendly analytics |
+| Data fetching inside islands | **TanStack Query** (caching + retry/cold-start states); **Zod** for runtime response validation at trust boundaries                                                                                                |
 
 ## 3. Architecture — the two-speed (hybrid) data model
 
@@ -45,6 +45,7 @@ The data is slow-moving (daily cron) and splits into two access patterns:
 
 **Rendering strategy (resolves a gap the drafts glossed):** the build is **fully static** (no SSR server
 to operate). Detail pages (`/recalls/[source]/[id]`, `/firms/[id]`) are handled as:
+
 - **`getStaticPaths` pre-renders a bounded popular set** (recent N recalls + top-N firms) → real
   server-rendered HTML with full SEO (`<title>`/meta/OG/JSON-LD), in the sitemap.
 - **The long tail is a client-fetch island**: a catch-all route ships a static shell that reads the id
@@ -67,17 +68,17 @@ to operate). Detail pages (`/recalls/[source]/[id]`, `/firms/[id]`) are handled 
 All endpoint names/params below are the **current** contract (API draft §3). The categorical `/recalls`
 filters are multi-value (repeat or comma); different filters AND together.
 
-| Page | Key content | Endpoint(s) | Render |
-|---|---|---|---|
-| `/` Landing | Hero KPI strip; recalls-over-time; by-source; by-classification (source-native); methodology blurb w/ geography caveat | `/stats/overview`, `/stats/recalls-by-period?grain=month`, `/stats/by-classification` | static (build-time) |
-| `/recalls` Browser | Filter/paginate table; URL-as-state; active-filter chips; **keyset cursor** | `/recalls?source=&classification=&is_active=&published_after=&published_before=&firm=&firm_id=&distribution_state=&limit=&cursor=` | island (live) |
-| `/recalls/[source]/[id]` Detail | Header card; products list; firm chips; lifecycle timeline (`announced_at→published_at` + `(revised)` from `has_been_edited`) | `/recalls/{source}/{recall_id}` | static popular set + client-fetch long tail |
-| `/firms/[id]` Firm | Identity card; recalls-by-source mini-bar; this firm's recalls; rank | `/firms/{id}`, `/recalls?firm_id={id}`, `/stats/firm-leaderboard` | static top-N + client-fetch tail |
-| `/dashboards` | Monthly trend+rolling+YoY; by week/month/year; classification×source; active vs inactive; most-recalled firms; **two captioned choropleths**; units (captioned) | `/stats/monthly-trend`, `/stats/recalls-by-period`, `/stats/by-classification`, `/stats/status`, `/stats/firm-leaderboard`, `/stats/by-geography?basis=distribution\|firm_registration`, `/stats/by-country`, `/stats/units` | static (build-time) |
-| `/search` | "Is my product recalled?" product search + exact HIN/model + UPC (honest); optional **recall-search** mode | `/products/search?q=&hin=&model=&upc=`, `/recalls/search?q=` | island (live) |
-| `/api/*` Docs | Rendered API reference + prose pagination/caveats pages | from `openapi.json` (Starlight) | static |
-| `/methodology`, `/about` | What the data is and isn't; sources; the honesty caveats | static MDX | static |
-| `/recalls.xml` | RSS of latest recalls | `/recalls?limit=N` at build | static |
+| Page                            | Key content                                                                                                                                                     | Endpoint(s)                                                                                                                                                                                                                  | Render                                      |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `/` Landing                     | Hero KPI strip; recalls-over-time; by-source; by-classification (source-native); methodology blurb w/ geography caveat                                          | `/stats/overview`, `/stats/recalls-by-period?grain=month`, `/stats/by-classification`                                                                                                                                        | static (build-time)                         |
+| `/recalls` Browser              | Filter/paginate table; URL-as-state; active-filter chips; **keyset cursor**                                                                                     | `/recalls?source=&classification=&is_active=&published_after=&published_before=&firm=&firm_id=&distribution_state=&limit=&cursor=`                                                                                           | island (live)                               |
+| `/recalls/[source]/[id]` Detail | Header card; products list; firm chips; lifecycle timeline (`announced_at→published_at` + `(revised)` from `has_been_edited`)                                   | `/recalls/{source}/{recall_id}`                                                                                                                                                                                              | static popular set + client-fetch long tail |
+| `/firms/[id]` Firm              | Identity card; recalls-by-source mini-bar; this firm's recalls; rank                                                                                            | `/firms/{id}`, `/recalls?firm_id={id}`, `/stats/firm-leaderboard`                                                                                                                                                            | static top-N + client-fetch tail            |
+| `/dashboards`                   | Monthly trend+rolling+YoY; by week/month/year; classification×source; active vs inactive; most-recalled firms; **two captioned choropleths**; units (captioned) | `/stats/monthly-trend`, `/stats/recalls-by-period`, `/stats/by-classification`, `/stats/status`, `/stats/firm-leaderboard`, `/stats/by-geography?basis=distribution\|firm_registration`, `/stats/by-country`, `/stats/units` | static (build-time)                         |
+| `/search`                       | "Is my product recalled?" product search + exact HIN/model + UPC (honest); optional **recall-search** mode                                                      | `/products/search?q=&hin=&model=&upc=`, `/recalls/search?q=`                                                                                                                                                                 | island (live)                               |
+| `/api/*` Docs                   | Rendered API reference + prose pagination/caveats pages                                                                                                         | from `openapi.json` (Starlight)                                                                                                                                                                                              | static                                      |
+| `/methodology`, `/about`        | What the data is and isn't; sources; the honesty caveats                                                                                                        | static MDX                                                                                                                                                                                                                   | static                                      |
+| `/recalls.xml`                  | RSS of latest recalls                                                                                                                                           | `/recalls?limit=N` at build                                                                                                                                                                                                  | static                                      |
 
 ## 6. Data-honesty requirements (a UI contract, not polish)
 
@@ -176,12 +177,12 @@ user accounts / saved searches / alerts (needs auth + a store — v2); SSR / a s
 The drafts own different layers; the only "conflicts" were the pipeline draft's own stale API specifics,
 all resolved the same way by the API draft §13:
 
-| Pipeline draft (stale) | Reconciled truth |
-|---|---|
+| Pipeline draft (stale)                  | Reconciled truth                                                    |
+| --------------------------------------- | ------------------------------------------------------------------- |
 | `/stats/*` + `fct_*` dashboards blocked | ✅ BUILT — 9 `/stats/*` endpoints; dashboards fetched at build time |
-| `?firm_id=` absent | ✅ BUILT — jsonb containment, matches firm in any role |
-| `date_from/date_to/status/page=` | `published_after/_before`, tri-state `is_active`, keyset `cursor` |
-| FDA "Class I/II/III" | FDA `1/2/3/NC`; classification source-native, scoped per source |
-| Rich edit-history timeline | Pruned — only `has_been_edited` (bool, no date) |
-| Per-product `upc` column | Dropped — UPC is recall-level only |
-| (product search only) | `/recalls/search?q=` also available (recall-grain) |
+| `?firm_id=` absent                      | ✅ BUILT — jsonb containment, matches firm in any role              |
+| `date_from/date_to/status/page=`        | `published_after/_before`, tri-state `is_active`, keyset `cursor`   |
+| FDA "Class I/II/III"                    | FDA `1/2/3/NC`; classification source-native, scoped per source     |
+| Rich edit-history timeline              | Pruned — only `has_been_edited` (bool, no date)                     |
+| Per-product `upc` column                | Dropped — UPC is recall-level only                                  |
+| (product search only)                   | `/recalls/search?q=` also available (recall-grain)                  |
