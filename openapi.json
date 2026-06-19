@@ -1,0 +1,4338 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Consumer Product Recalls API",
+    "description": "Open, read-only API over the consumer product recalls gold marts (CPSC, FDA, USDA, NHTSA, USCG). Honest caveats: `is_active` is tri-state (CPSC/NHTSA carry no status -> null); `classification` is source-native and not comparable across sources; UPC search matches recall-level UPC arrays, not per-product UPC; there is no fuzzy/typo search.",
+    "version": "0.1.1"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Liveness probe (no DB touch).",
+        "description": "Liveness: process is up. No DB touch, so the Docker/Fly probe never wakes Neon.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/db": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Readiness probe — verifies the read-only DB connection.",
+        "description": "Readiness: SELECT 1 to Neon; a cold DB becomes 503 + Retry-After via the error handler.",
+        "operationId": "health_db_health_db_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DbHealth"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recalls": {
+      "get": {
+        "tags": [
+          "recalls"
+        ],
+        "summary": "List recalls (newest first), with filters and keyset pagination.",
+        "description": "Recalls across CPSC, FDA, USDA, NHTSA, USCG, newest first (`published_at DESC`), keyset (seek) paginated — pass the previous page's `next_cursor` back as `cursor`. Filters AND together: `source`, `classification`, `is_active`, `lifecycle_status`, `distribution_scope`, `distribution_state`, `distribution_country`, `source_recall_id`, `firm`, plus the `published_*` and `announced_*` date ranges. The categorical filters (`source`, `classification`, `lifecycle_status`, `distribution_scope`, `distribution_state`, `distribution_country`) accept multiple values — repeat the param or comma-separate (`?source=CPSC,FDA`) for any-of (OR) within a field; different fields still AND. Caveats: `classification`/`lifecycle_status` are source-native (not unified); `is_active`/`lifecycle_status` are null for CPSC/NHTSA (a value filter excludes those rows); `announced_at` is nullable (an `announced_*` filter drops rows lacking it); `distribution_state`/`distribution_country` are FDA/USDA-only and `distribution_country` is foreign-only (`US` excluded by design); `source_recall_id` is exact, unique only with `source` (use the detail route); `firm` is an unindexed substring filter. Total is omitted unless `with_total=true`.",
+        "operationId": "list_recalls_recalls_get",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Source"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Issuing agency; repeat or comma-separate for any-of (OR).",
+              "title": "Source"
+            },
+            "description": "Issuing agency; repeat or comma-separate for any-of (OR)."
+          },
+          {
+            "name": "classification",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "EXACT source-native classification(s); repeat/comma-separate for any-of.",
+              "title": "Classification"
+            },
+            "description": "EXACT source-native classification(s); repeat/comma-separate for any-of."
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tri-state; CPSC/NHTSA carry null and match neither true nor false.",
+              "title": "Is Active"
+            },
+            "description": "Tri-state; CPSC/NHTSA carry null and match neither true nor false."
+          },
+          {
+            "name": "published_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive from the START of that calendar day.",
+              "title": "Published After"
+            },
+            "description": "Inclusive from the START of that calendar day."
+          },
+          {
+            "name": "published_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive of the ENTIRE published_before calendar day.",
+              "title": "Published Before"
+            },
+            "description": "Inclusive of the ENTIRE published_before calendar day."
+          },
+          {
+            "name": "firm",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive substring on the recall's PRIMARY firm name only (not secondary/co-recalled firms); unindexed.",
+              "title": "Firm"
+            },
+            "description": "Case-insensitive substring on the recall's PRIMARY firm name only (not secondary/co-recalled firms); unindexed."
+          },
+          {
+            "name": "distribution_scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DistributionScope"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gold distribution scope(s); repeat/comma-separate for any-of (422 on a bad value).",
+              "title": "Distribution Scope"
+            },
+            "description": "Gold distribution scope(s); repeat/comma-separate for any-of (422 on a bad value)."
+          },
+          {
+            "name": "lifecycle_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "EXACT source-native status(es); repeat/comma-separate for any-of. Null for CPSC/NHTSA (excludes those rows).",
+              "title": "Lifecycle Status"
+            },
+            "description": "EXACT source-native status(es); repeat/comma-separate for any-of. Null for CPSC/NHTSA (excludes those rows)."
+          },
+          {
+            "name": "announced_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "announced_at >= start of that day (UTC); null-announced rows excluded.",
+              "title": "Announced After"
+            },
+            "description": "announced_at >= start of that day (UTC); null-announced rows excluded."
+          },
+          {
+            "name": "announced_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive of the whole announced_before day; nulls excluded.",
+              "title": "Announced Before"
+            },
+            "description": "Inclusive of the whole announced_before day; nulls excluded."
+          },
+          {
+            "name": "source_recall_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "EXACT agency-native id; unique only when combined with source.",
+              "title": "Source Recall Id"
+            },
+            "description": "EXACT agency-native id; unique only when combined with source."
+          },
+          {
+            "name": "firm_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{32}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Canonical firm cluster id; returns recalls where this firm appears in ANY role (incl. co-recalled/secondary firms), unlike `firm` (primary-name substring). Obtain from RecallDetail.firms[].firm_id.",
+              "title": "Firm Id"
+            },
+            "description": "Canonical firm cluster id; returns recalls where this firm appears in ANY role (incl. co-recalled/secondary firms), unlike `firm` (primary-name substring). Obtain from RecallDetail.firms[].firm_id."
+          },
+          {
+            "name": "distribution_state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "USPS 2-letter code(s); recalls distributed to ANY (FDA/USDA only). Repeat/comma-separate for any-of.",
+              "title": "Distribution State"
+            },
+            "description": "USPS 2-letter code(s); recalls distributed to ANY (FDA/USDA only). Repeat/comma-separate for any-of."
+          },
+          {
+            "name": "distribution_country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO alpha-2 code(s); FOREIGN distribution only ('US' excluded by design). Repeat/comma-separate for any-of.",
+              "title": "Distribution Country"
+            },
+            "description": "ISO alpha-2 code(s); FOREIGN distribution only ('US' excluded by design). Repeat/comma-separate for any-of."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Page size (max 100).",
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "Page size (max 100)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a prior next_cursor."
+          },
+          {
+            "name": "with_total",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also compute total (extra COUNT).",
+              "default": false,
+              "title": "With Total"
+            },
+            "description": "Also compute total (extra COUNT)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RecallSummary_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recalls/search": {
+      "get": {
+        "tags": [
+          "recalls"
+        ],
+        "summary": "Search recalls by keyword (recall-grain full-text), with the same filters.",
+        "description": "Recall-grain keyword search — Postgres full-text over the recall's title, product names, firm, and narrative (reason/consequence), ranked by relevance (`rank` = `ts_rank_cd`). Token/prefix matching only; NO fuzzy/typo search. Unlike `/products/search` (product grain, identifiers + UPC), this returns one row per recall, each linking to its detail route. All `/recalls` filters AND-in. Relevance-ordered keyset is not index-backed (the GIN serves the `@@` match, not the sort); the sort is over the matched set.",
+        "operationId": "search_recalls_recalls_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 200,
+              "description": "Keywords (Postgres websearch).",
+              "title": "Q"
+            },
+            "description": "Keywords (Postgres websearch)."
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Source"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Issuing agency; repeat or comma-separate for any-of (OR).",
+              "title": "Source"
+            },
+            "description": "Issuing agency; repeat or comma-separate for any-of (OR)."
+          },
+          {
+            "name": "classification",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "EXACT source-native classification(s); repeat/comma-separate for any-of.",
+              "title": "Classification"
+            },
+            "description": "EXACT source-native classification(s); repeat/comma-separate for any-of."
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tri-state; CPSC/NHTSA carry null and match neither true nor false.",
+              "title": "Is Active"
+            },
+            "description": "Tri-state; CPSC/NHTSA carry null and match neither true nor false."
+          },
+          {
+            "name": "published_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive from the START of that calendar day.",
+              "title": "Published After"
+            },
+            "description": "Inclusive from the START of that calendar day."
+          },
+          {
+            "name": "published_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive of the ENTIRE published_before calendar day.",
+              "title": "Published Before"
+            },
+            "description": "Inclusive of the ENTIRE published_before calendar day."
+          },
+          {
+            "name": "firm",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive substring on the recall's PRIMARY firm name only (not secondary/co-recalled firms); unindexed.",
+              "title": "Firm"
+            },
+            "description": "Case-insensitive substring on the recall's PRIMARY firm name only (not secondary/co-recalled firms); unindexed."
+          },
+          {
+            "name": "distribution_scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DistributionScope"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gold distribution scope(s); repeat/comma-separate for any-of (422 on a bad value).",
+              "title": "Distribution Scope"
+            },
+            "description": "Gold distribution scope(s); repeat/comma-separate for any-of (422 on a bad value)."
+          },
+          {
+            "name": "lifecycle_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "EXACT source-native status(es); repeat/comma-separate for any-of. Null for CPSC/NHTSA (excludes those rows).",
+              "title": "Lifecycle Status"
+            },
+            "description": "EXACT source-native status(es); repeat/comma-separate for any-of. Null for CPSC/NHTSA (excludes those rows)."
+          },
+          {
+            "name": "announced_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "announced_at >= start of that day (UTC); null-announced rows excluded.",
+              "title": "Announced After"
+            },
+            "description": "announced_at >= start of that day (UTC); null-announced rows excluded."
+          },
+          {
+            "name": "announced_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive of the whole announced_before day; nulls excluded.",
+              "title": "Announced Before"
+            },
+            "description": "Inclusive of the whole announced_before day; nulls excluded."
+          },
+          {
+            "name": "source_recall_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "EXACT agency-native id; unique only when combined with source.",
+              "title": "Source Recall Id"
+            },
+            "description": "EXACT agency-native id; unique only when combined with source."
+          },
+          {
+            "name": "firm_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{32}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Canonical firm cluster id; returns recalls where this firm appears in ANY role (incl. co-recalled/secondary firms), unlike `firm` (primary-name substring). Obtain from RecallDetail.firms[].firm_id.",
+              "title": "Firm Id"
+            },
+            "description": "Canonical firm cluster id; returns recalls where this firm appears in ANY role (incl. co-recalled/secondary firms), unlike `firm` (primary-name substring). Obtain from RecallDetail.firms[].firm_id."
+          },
+          {
+            "name": "distribution_state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "USPS 2-letter code(s); recalls distributed to ANY (FDA/USDA only). Repeat/comma-separate for any-of.",
+              "title": "Distribution State"
+            },
+            "description": "USPS 2-letter code(s); recalls distributed to ANY (FDA/USDA only). Repeat/comma-separate for any-of."
+          },
+          {
+            "name": "distribution_country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO alpha-2 code(s); FOREIGN distribution only ('US' excluded by design). Repeat/comma-separate for any-of.",
+              "title": "Distribution Country"
+            },
+            "description": "ISO alpha-2 code(s); FOREIGN distribution only ('US' excluded by design). Repeat/comma-separate for any-of."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Page size (max 100).",
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "Page size (max 100)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a prior next_cursor."
+          },
+          {
+            "name": "with_total",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also compute total (extra COUNT).",
+              "default": false,
+              "title": "With Total"
+            },
+            "description": "Also compute total (extra COUNT)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RecallSearchHit_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recalls/{source}/{recall_id}": {
+      "get": {
+        "tags": [
+          "recalls"
+        ],
+        "summary": "Fetch one recall's full record by its source + native recall id.",
+        "description": "The complete record for one recall, by issuing agency + that agency's native id (e.g. `CPSC/24-001`). The source is accepted case-insensitively. Field caveats: `classification`/`risk_level`/`lifecycle_status` are source-native; `is_active` is `null` for CPSC/NHTSA; `distribution_states` is agency prose (a scalar string), distinct from the parsed `distribution_state_codes`.",
+        "operationId": "get_recall_recalls__source___recall_id__get",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Issuing agency (accepted case-insensitively).",
+              "title": "Source"
+            },
+            "description": "Issuing agency (accepted case-insensitively)."
+          },
+          {
+            "name": "recall_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "The agency-native recall id.",
+              "title": "Recall Id"
+            },
+            "description": "The agency-native recall id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecallDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ResourceNotFound.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/search": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "Search recalled products by keyword (full-text) or exact identifier.",
+        "description": "Searches recalled products. Keyword (`q`) is a Postgres full-text search over product name, description, recall title, and firm name, ranked by relevance (`rank`); token/prefix matching only, NO fuzzy/typo search. Identifier (`hin`, `model`) are exact matches. `upc` is matched at the RECALL level via containment (the per-product UPC field is empty), so each hit carries `upc_is_recall_level: true` — a miss means no recall lists that UPC, not that the product was never recalled. Supply at least one of q, hin, model, upc (else 422). Precedence when several given: q > hin/model > upc. `source` AND-s any path and accepts multiple values (repeat or comma-separate) for any-of (OR).",
+        "operationId": "search_products_products_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keywords (Postgres websearch).",
+              "title": "Q"
+            },
+            "description": "Keywords (Postgres websearch)."
+          },
+          {
+            "name": "hin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exact USCG Hull ID.",
+              "title": "Hin"
+            },
+            "description": "Exact USCG Hull ID."
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exact product model.",
+              "title": "Model"
+            },
+            "description": "Exact product model."
+          },
+          {
+            "name": "upc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPC — matched recall-level via containment.",
+              "title": "Upc"
+            },
+            "description": "UPC — matched recall-level via containment."
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Source"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional source filter, AND-ed; repeat/comma-separate for any-of (OR).",
+              "title": "Source"
+            },
+            "description": "Optional source filter, AND-ed; repeat/comma-separate for any-of (OR)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Page size (max 100).",
+              "default": 25,
+              "title": "Limit"
+            },
+            "description": "Page size (max 100)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a prior next_cursor."
+          },
+          {
+            "name": "with_total",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also compute total (extra COUNT).",
+              "default": false,
+              "title": "With Total"
+            },
+            "description": "Also compute total (extra COUNT)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ProductSearchHit_"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firms/{firm_id}": {
+      "get": {
+        "tags": [
+          "firms"
+        ],
+        "summary": "Fetch a canonical (cross-source) firm profile with its agency registration sidecars.",
+        "description": "One canonical firm — the cross-source cluster, so a maker appearing under several agencies (e.g. Honda under NHTSA and USCG) collapses to a single profile. Includes recall counts, the per-source breakdown (`recalls_by_source`), name variants, and agency registration sidecars: `firm_usda_attributes` (USDA/FSIS), `firm_uscg_attributes` (USCG boat MIC), and `firm_fda_attributes` (FDA FEI). Sidecars have DIFFERENT shapes and any may be empty; CPSC and NHTSA contribute none. `first_recall_at`/`last_recall_at` are null for a firm with no matched recalls. The id is opaque — obtain it from a recall's `firms[].firm_id`.",
+        "operationId": "get_firm_firms__firm_id__get",
+        "parameters": [
+          {
+            "name": "firm_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 32,
+              "pattern": "^[0-9a-f]{32}$",
+              "description": "Opaque canonical firm id (md5 cluster id).",
+              "title": "Firm Id"
+            },
+            "description": "Opaque canonical firm id (md5 cluster id)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirmProfile"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ResourceNotFound.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/overview": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Headline KPIs: total recalls, distinct firms, sources covered, last gold rebuild.",
+        "operationId": "overview_stats_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/recalls-by-period": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Recall counts per period (month/week/year) per source + 'ALL' rollup.",
+        "operationId": "recalls_by_period_stats_recalls_by_period_get",
+        "parameters": [
+          {
+            "name": "grain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Grain",
+              "description": "Time grain: month | week | year.",
+              "default": "month"
+            },
+            "description": "Time grain: month | week | year."
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StatsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns [].",
+              "title": "Source"
+            },
+            "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns []."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PeriodCount"
+                  },
+                  "title": "Response Recalls By Period Stats Recalls By Period Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/monthly-trend": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Per-source monthly trend with rolling averages + year-over-year change.",
+        "operationId": "monthly_trend_stats_monthly_trend_get",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StatsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns [].",
+              "title": "Source"
+            },
+            "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns []."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonthlyTrendPoint"
+                  },
+                  "title": "Response Monthly Trend Stats Monthly Trend Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/by-classification": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Recall counts by source-native classification + risk_level (+ 'ALL').",
+        "operationId": "by_classification_stats_by_classification_get",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StatsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns [].",
+              "title": "Source"
+            },
+            "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns []."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClassificationCount"
+                  },
+                  "title": "Response By Classification Stats By Classification Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/status": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Active/inactive/unknown recall counts per source (+ 'ALL').",
+        "operationId": "status_stats_status_get",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StatsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns [].",
+              "title": "Source"
+            },
+            "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns []."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatusCount"
+                  },
+                  "title": "Response Status Stats Status Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/firm-leaderboard": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Most-recalled firms, ranked (top-N).",
+        "operationId": "firm_leaderboard_stats_firm_leaderboard_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Top-N firms (1-100).",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Top-N firms (1-100)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FirmLeaderRow"
+                  },
+                  "title": "Response Firm Leaderboard Stats Firm Leaderboard Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/by-geography": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Per-state recall counts; basis = distribution | firm_registration (+ 'ALL').",
+        "operationId": "by_geography_stats_by_geography_get",
+        "parameters": [
+          {
+            "name": "basis",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GeographyBasis",
+              "description": "distribution | firm_registration (different questions, not a toggle).",
+              "default": "distribution"
+            },
+            "description": "distribution | firm_registration (different questions, not a toggle)."
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StatsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns [].",
+              "title": "Source"
+            },
+            "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns []."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GeographyCount"
+                  },
+                  "title": "Response By Geography Stats By Geography Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/by-country": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Per-distribution-country recall counts (FDA/USDA + 'ALL').",
+        "operationId": "by_country_stats_by_country_get",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StatsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns [].",
+              "title": "Source"
+            },
+            "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns []."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CountryCount"
+                  },
+                  "title": "Response By Country Stats By Country Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/units": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Units recalled per source x unit_category x month (NOT cross-source comparable).",
+        "operationId": "units_stats_units_get",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StatsSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns [].",
+              "title": "Source"
+            },
+            "description": "Filter to one feed (incl. the 'ALL' rollup where the fact carries it). Omit for every row. A source absent from a fact returns []."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnitsRow"
+                  },
+                  "title": "Response Units Stats Units Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadCursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "InvalidParameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "UpstreamUnavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ClassificationCount": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Agency feed, or 'ALL'."
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification",
+            "description": "SOURCE-NATIVE classification (FDA 1/2/3/NC; USDA Class I/II/III + Public Health Alert; USCG H/L/M/S; null = CPSC/NHTSA unclassified). NOT cross-source comparable."
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Level",
+            "description": "USDA-only health-risk label; null for the other sources."
+          },
+          "event_count": {
+            "type": "integer",
+            "title": "Event Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "event_count"
+        ],
+        "title": "ClassificationCount",
+        "description": "Recall counts by source-native classification + risk_level (+ the 'ALL' rollup)."
+      },
+      "CountryCount": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Agency feed (FDA/USDA), or 'ALL'."
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code",
+            "description": "ISO-3166-1 alpha-2 (incl. a derived 'US')."
+          },
+          "recall_count": {
+            "type": "integer",
+            "title": "Recall Count",
+            "description": "Recalls distributed to this country. Multi-valued — a US+abroad recall counts once per country, so per-country counts sum to more than the distinct-recall total."
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "country_code",
+          "recall_count"
+        ],
+        "title": "CountryCount",
+        "description": "Per-distribution-country recall counts (FDA/USDA + 'ALL') — the country analogue of state."
+      },
+      "DbHealth": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "default": "ok"
+          },
+          "database": {
+            "type": "string",
+            "const": "reachable",
+            "title": "Database",
+            "default": "reachable"
+          }
+        },
+        "type": "object",
+        "title": "DbHealth",
+        "description": "Readiness body (returned only when the SELECT 1 round-trip succeeds)."
+      },
+      "DistributionScope": {
+        "type": "string",
+        "enum": [
+          "Nationwide",
+          "Regional",
+          "Unspecified",
+          "International"
+        ],
+        "title": "DistributionScope",
+        "description": "Closed 4-value gold enum (dbt accepted_values; 100% NOT NULL). Free 422 on a bad value."
+      },
+      "ErrorDetail": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "examples": [
+              "not_found"
+            ]
+          },
+          "detail": {
+            "title": "Detail",
+            "examples": [
+              "No recall found for CPSC/24-001."
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "examples": [
+              "b1d9c6f2-3a1e-4c7e-9f0a-7d2c1e5b8a40"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "detail",
+          "request_id"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorEnvelope": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorEnvelope"
+      },
+      "FdaAttributes": {
+        "properties": {
+          "firm_fei_num": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Firm Fei Num"
+          },
+          "firm_legal_nam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm Legal Nam"
+          },
+          "firm_city_nam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm City Nam"
+          },
+          "firm_state_cd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm State Cd"
+          },
+          "firm_state_prvnc_nam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm State Prvnc Nam"
+          },
+          "firm_country_nam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm Country Nam"
+          },
+          "firm_postal_cd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm Postal Cd"
+          },
+          "firm_line1_adr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm Line1 Adr"
+          },
+          "firm_line2_adr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm Line2 Adr"
+          },
+          "firm_surviving_nam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm Surviving Nam"
+          },
+          "firm_surviving_fei": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm Surviving Fei"
+          }
+        },
+        "type": "object",
+        "required": [
+          "firm_fei_num"
+        ],
+        "title": "FdaAttributes",
+        "description": "An FDA FEI firm row (firm_fda_attributes, join key firm_fei_num cast to text)."
+      },
+      "FirmLeaderRow": {
+        "properties": {
+          "firm_id": {
+            "type": "string",
+            "title": "Firm Id",
+            "description": "Canonical firm id; use with GET /firms/{firm_id}."
+          },
+          "canonical_name": {
+            "type": "string",
+            "title": "Canonical Name"
+          },
+          "event_count": {
+            "type": "integer",
+            "title": "Event Count",
+            "description": "Total distinct recalls for the firm (all sources)."
+          },
+          "active_recalls": {
+            "type": "integer",
+            "title": "Active Recalls",
+            "description": "Currently-active recalls (FDA/USDA/USCG only)."
+          },
+          "product_count": {
+            "type": "integer",
+            "title": "Product Count",
+            "description": "Distinct recalled products (per-firm footprint)."
+          },
+          "event_count_rank": {
+            "type": "integer",
+            "title": "Event Count Rank",
+            "description": "Dense rank by total recalls (1 = most-recalled)."
+          },
+          "first_recall_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Recall At"
+          },
+          "last_recall_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Recall At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "firm_id",
+          "canonical_name",
+          "event_count",
+          "active_recalls",
+          "product_count",
+          "event_count_rank"
+        ],
+        "title": "FirmLeaderRow",
+        "description": "A row of the most-recalled-firms leaderboard (ranked over mart_firm_profile)."
+      },
+      "FirmProfile": {
+        "properties": {
+          "firm_id": {
+            "type": "string",
+            "title": "Firm Id",
+            "description": "Synthetic primary key of the canonical firm (a cross-source cluster). Derived from the firm-resolution crosswalk, falling back to md5(normalized name). One row per canonical firm across all agencies. Sources: derived (all five contribute names)."
+          },
+          "canonical_name": {
+            "type": "string",
+            "title": "Canonical Name",
+            "description": "Human-readable display name of the canonical firm — the cluster's resolved name, or the representative raw firm name when unclustered. Not an authoritative legal name. Sources: all five.",
+            "examples": [
+              "Acme Foods Inc"
+            ]
+          },
+          "normalized_name": {
+            "type": "string",
+            "title": "Normalized Name",
+            "description": "Upper-cased, whitespace-trimmed form of the firm's representative name for case-insensitive lookup. NOT a unique key (firm_id is the key). Sources: all five."
+          },
+          "observed_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Observed Names",
+            "description": "JSONB array of all distinct raw firm-name surface forms (across sources and spellings) that map to this canonical firm — the provenance/audit trail of names collapsed together. Always >=1 element. Sources: all five."
+          },
+          "observed_company_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Observed Company Ids",
+            "description": "JSONB array of distinct structured firm identifiers observed for this firm: FDA FEI numbers, USDA FSIS establishment numbers, and USCG MICs. Also the join key to the three sidecars. Sources: FDA, USDA, USCG (empty for firms seen only via CPSC/NHTSA, which carry no usable firm id)."
+          },
+          "alternate_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alternate Names",
+            "description": "JSONB array of brand/DBA surface-form aliases (e.g. 'John Deere' for 'Deere & Company (John Deere)'), derived by the firm-resolution step for search and fuzzy matching. Empty when the firm has no aliases. Sources: derived (not a per-agency field)."
+          },
+          "total_recalls": {
+            "type": "integer",
+            "title": "Total Recalls",
+            "description": "Total distinct recalls this firm is linked to, across all sources it appears in (a firm in multiple roles on one recall counts once). Always present. Sources: all five.",
+            "default": 0
+          },
+          "active_recalls": {
+            "type": "integer",
+            "title": "Active Recalls",
+            "description": "Count of this firm's distinct currently-active recalls. Only FDA, USDA, and USCG recalls can be active; CPSC and NHTSA have no lifecycle (is_active null) and never count. Always present (0 if none). Sources counted: FDA, USDA, USCG.",
+            "default": 0
+          },
+          "first_recall_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Recall At",
+            "description": "Earliest recall publication timestamp for this firm (min of published_at — a per-source 'last published / record-created' date, not a uniform announcement date). Null only for a firm with no linked recall. Sources: all five."
+          },
+          "last_recall_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Recall At",
+            "description": "Most recent recall publication timestamp for this firm (max of published_at; same per-source caveat as first_recall_at). Null only for a firm with no linked recall. Sources: all five."
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles",
+            "description": "Distinct roles this firm has played across its recalls: manufacturer, importer, distributor (CPSC), establishment (FDA/USDA), filer/manufacturer (NHTSA), manufacturer (USCG). Sources: all five."
+          },
+          "recalls_by_source": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Recalls By Source",
+            "description": "JSONB object mapping source -> distinct recall count for this firm (e.g. {'NHTSA': 12, 'CPSC': 3}). Only sources where the firm has >=1 recall appear as keys, and the values sum to total_recalls. Sources: all five.",
+            "examples": [
+              {
+                "FDA": 2,
+                "USDA": 1
+              }
+            ]
+          },
+          "distinct_products": {
+            "type": "integer",
+            "title": "Distinct Products",
+            "description": "Total distinct recalled-product rows across all recalls this firm is associated with, in any role (a per-firm footprint, NOT a global distinct — a product on a multi-firm recall is counted under each firm). Never null. Sources: all five.",
+            "default": 0
+          },
+          "firm_usda_attributes": {
+            "items": {
+              "$ref": "#/components/schemas/UsdaEstablishment"
+            },
+            "type": "array",
+            "title": "Firm Usda Attributes",
+            "description": "USDA FSIS establishment attributes — a JSON array of one block per matched FSIS establishment number (name, address, regulatory metadata, grant dates). Empty for non-USDA firms. Sources: USDA only."
+          },
+          "firm_uscg_attributes": {
+            "items": {
+              "$ref": "#/components/schemas/UscgManufacturer"
+            },
+            "type": "array",
+            "title": "Firm Uscg Attributes",
+            "description": "USCG boat-manufacturer directory attributes — a JSON array of one block per USCG Manufacturer Identification Code (MIC) the firm is registered under (company name, address, status, succession lineage, MIC-recycle flags). Empty for non-USCG firms. Sources: USCG only."
+          },
+          "firm_fda_attributes": {
+            "items": {
+              "$ref": "#/components/schemas/FdaAttributes"
+            },
+            "type": "array",
+            "title": "Firm Fda Attributes",
+            "description": "FDA establishment attributes — a JSON array of one block per FDA FEI the firm clusters under (legal name, address at time of recall, firm-succession signal). Empty for non-FDA firms. Sources: FDA only."
+          }
+        },
+        "type": "object",
+        "required": [
+          "firm_id",
+          "canonical_name",
+          "normalized_name"
+        ],
+        "title": "FirmProfile",
+        "description": "One canonical (cross-source) firm: identity, aliases, recall stats, and 3 sidecars."
+      },
+      "FirmRef": {
+        "properties": {
+          "firm_id": {
+            "type": "string",
+            "title": "Firm Id",
+            "description": "Canonical firm cluster id; use with GET /firms/{firm_id}.",
+            "examples": [
+              "7d2c1e5b8a40f0a9f4c7e3a1e3a1c6f2"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Canonical (cleaned) firm name.",
+            "examples": [
+              "Acme Corporation"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "Role this firm played on the recall (manufacturer/importer/distributor for CPSC, establishment for FDA/USDA, filer/manufacturer for NHTSA, manufacturer for USCG).",
+            "examples": [
+              "manufacturer"
+            ]
+          },
+          "match_confidence": {
+            "type": "string",
+            "title": "Match Confidence",
+            "description": "Firm-resolution path/quality for this link (e.g. exact_name, fei_exact).",
+            "examples": [
+              "exact_name"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "firm_id",
+          "name",
+          "role",
+          "match_confidence"
+        ],
+        "title": "FirmRef",
+        "description": "An element of a recall's ``firms[]`` rollup; ``firm_id`` links to ``GET /firms/{id}``."
+      },
+      "GeographyBasis": {
+        "type": "string",
+        "enum": [
+          "distribution",
+          "firm_registration"
+        ],
+        "title": "GeographyBasis",
+        "description": "The two (non-interchangeable) geography lenses for ``/stats/by-geography``."
+      },
+      "GeographyCount": {
+        "properties": {
+          "geography_basis": {
+            "type": "string",
+            "title": "Geography Basis",
+            "description": "'distribution' (where the product went; FDA/USDA) or 'firm_registration' (where the firm is registered; USDA/USCG/FDA). The two lenses are DIFFERENT questions — not interchangeable."
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Agency feed, or 'ALL'."
+          },
+          "state_code": {
+            "type": "string",
+            "title": "State Code",
+            "description": "USPS 2-letter state/territory code."
+          },
+          "recall_count": {
+            "type": "integer",
+            "title": "Recall Count",
+            "description": "Recalls touching this state. NOTE: a recall is counted in EVERY state it touches, so per-state counts SUM TO MORE than the total (industry-footprint reading)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "geography_basis",
+          "source",
+          "state_code",
+          "recall_count"
+        ],
+        "title": "GeographyCount",
+        "description": "Per-US-state recall counts, two lenses (distribution vs firm-registration) + 'ALL' rollup."
+      },
+      "Grain": {
+        "type": "string",
+        "enum": [
+          "month",
+          "week",
+          "year"
+        ],
+        "title": "Grain",
+        "description": "Time grain for ``/stats/recalls-by-period``."
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "default": "ok"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "examples": [
+              "0.1.0"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "Health",
+        "description": "Liveness body."
+      },
+      "MonthlyTrendPoint": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Agency feed (per-source only; no 'ALL' rollup on this fact)."
+          },
+          "event_count": {
+            "type": "integer",
+            "title": "Event Count"
+          },
+          "rolling_3mo_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolling 3Mo Avg",
+            "description": "3-month rolling average."
+          },
+          "rolling_12mo_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolling 12Mo Avg",
+            "description": "12-month rolling average."
+          },
+          "event_count_year_ago": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Count Year Ago",
+            "description": "event_count 12 months earlier (null for the first year)."
+          },
+          "yoy_pct_change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yoy Pct Change",
+            "description": "Year-over-year % change vs 12 months ago (null when undefined)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "source",
+          "event_count"
+        ],
+        "title": "MonthlyTrendPoint",
+        "description": "One month of the per-source trend over a dense spine — rolling averages + YoY."
+      },
+      "Page_ProductSearchHit_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductSearchHit"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "examples": [
+              "eyJ2IjpbIjIwMjYtMDEtMDEiLCJhYmMiXX0"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "examples": [
+              25
+            ]
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total",
+            "description": "Only when with_total=true.",
+            "examples": [
+              null
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "limit"
+        ],
+        "title": "Page[ProductSearchHit]"
+      },
+      "Page_RecallSearchHit_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecallSearchHit"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "examples": [
+              "eyJ2IjpbIjIwMjYtMDEtMDEiLCJhYmMiXX0"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "examples": [
+              25
+            ]
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total",
+            "description": "Only when with_total=true.",
+            "examples": [
+              null
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "limit"
+        ],
+        "title": "Page[RecallSearchHit]"
+      },
+      "Page_RecallSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecallSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "examples": [
+              "eyJ2IjpbIjIwMjYtMDEtMDEiLCJhYmMiXX0"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "examples": [
+              25
+            ]
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total",
+            "description": "Only when with_total=true.",
+            "examples": [
+              null
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "limit"
+        ],
+        "title": "Page[RecallSummary]"
+      },
+      "PeriodCount": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "format": "date",
+            "title": "Period",
+            "description": "Period start (month / ISO-week Monday / Jan-1 per grain)."
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Agency feed, or 'ALL' for the all-source rollup."
+          },
+          "event_count": {
+            "type": "integer",
+            "title": "Event Count",
+            "description": "Distinct recall events in this period for this source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "source",
+          "event_count"
+        ],
+        "title": "PeriodCount",
+        "description": "One (period, source) recall count — backs ``/stats/recalls-by-period`` (month/week/year)."
+      },
+      "ProductSearchHit": {
+        "properties": {
+          "recall_product_id": {
+            "type": "string",
+            "title": "Recall Product Id",
+            "description": "Stable surrogate primary key for one recalled product line, reused verbatim from silver (md5, unique, never null). Also the keyset cursor anchor. Sources: all five."
+          },
+          "recall_event_id": {
+            "type": "string",
+            "title": "Recall Event Id",
+            "description": "Surrogate key of the parent recall event (md5; joins to GET /recalls/{source}/{recall_id}). Many products can share one event for CPSC/FDA/NHTSA; 1:1 for USDA/USCG. Sources: all five."
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source",
+            "description": "Originating data source: CPSC, FDA, USDA, NHTSA, USCG. Always populated."
+          },
+          "source_recall_id": {
+            "type": "string",
+            "title": "Source Recall Id",
+            "description": "Source-native recall identifier, paired with source for the public natural key. Recall-grain for CPSC/USDA/NHTSA/USCG; for FDA it is the product id (product-grain) — the FDA recall-event id is recall_event_id. Always populated."
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name",
+            "description": "Product name for this recalled product. Source-dependent: CPSC = product name; USCG = boat model name; FDA = the product DESCRIPTION text; USDA = the recall TITLE; NHTSA = the COMPONENT description. May be null for some rows. Sources: all five."
+          },
+          "product_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Description",
+            "description": "Free-text description of the product. Source-dependent: FDA = the product description (same value as product_name); USDA = the product-items blob (~40% null); NHTSA = the component description; USCG = a short defect/problem note (~25 chars). Sources: FDA, USDA, NHTSA, USCG (null for CPSC, whose per-product description is absent at source)."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Product model identifier for exact-match lookup (btree-indexed). Populated only for NHTSA (MODELTXT, e.g. 'F-150'); null for CPSC, FDA, USDA, USCG (USCG's boat name is in product_name). Sources: NHTSA only."
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "Source-specific product category code/label (NOT harmonized across sources): FDA = commodity (Devices/Food/Drugs/Veterinary/Biologics/Cosmetics); USDA = FSIS processing category; NHTSA = recall-type code (V/T/E/C/I/X); USCG = a numeric boat-type code; CPSC = a free-text product type. Compare only within a single source; null where the source provides no type. Sources: all five.",
+            "examples": [
+              "Frozen ready-to-eat"
+            ]
+          },
+          "model_year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Year",
+            "description": "Model year of the recalled item (text). Populated only for NHTSA (YEARTXT, with the '9999' sentinel nulled) and USCG (varied formats; ~32% null); null for CPSC, FDA, USDA. Kept as text because USCG values are not uniformly numeric. Sources: NHTSA, USCG.",
+            "examples": [
+              2019
+            ]
+          },
+          "hin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hin",
+            "description": "USCG Hull Identification Number for the recalled boat (the boating analog of a VIN/UPC; btree-indexed). USCG-only — null for CPSC, FDA, USDA, NHTSA; only ~54% of USCG products carry a real HIN. Sources: USCG only."
+          },
+          "recall_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall Title",
+            "description": "Headline of the recall this product belongs to. Native title for CPSC/USDA; synthesized '<recall-id> — <firm/model>' for FDA/NHTSA/USCG. Always populated. Sources: all five."
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification",
+            "description": "Recall severity/hazard classification in the source's native vocabulary (FDA 1/2/3, NC; USDA Class I/II/III, Public Health Alert; USCG H/L/M/S). NOT normalized across sources. Sources: FDA, USDA, USCG (null for CPSC/NHTSA)."
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Level",
+            "description": "USDA health-risk label derived 1:1 from the USDA classification (e.g. 'High - Class I'). Sources: USDA only (null for CPSC/FDA/NHTSA/USCG)."
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At",
+            "description": "Publication / last-published timestamp of the recall (always present; the canonical sort key). Sources: all five."
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "Agency detail-page URL for the recall. Sources: CPSC, USDA, USCG (null for FDA/NHTSA)."
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active",
+            "description": "Conformed tri-state flag for whether the recall is still active (from the FDA/USDA/USCG lifecycle). Sources: FDA, USDA, USCG (null for CPSC/NHTSA)."
+          },
+          "firm_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firm Name",
+            "description": "Primary display firm for the recall — the canonical name of the highest-priority firm by role (manufacturer > establishment > filer > importer > distributor). May be null when no firm resolves. Sources: all five."
+          },
+          "recall_product_upcs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recall Product Upcs",
+            "description": "Recall-level UPC codes (recall-event grain, denormalized onto each product row; this is what UPC search matches via containment). Gold stores them as [{upc:…}] objects; the API flattens to bare strings ([] when absent). Populated only for CPSC and sparse there (~5% of CPSC recalls); empty for FDA/USDA/NHTSA/USCG. Sources: CPSC only."
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank",
+            "description": "Cover-density full-text relevance (ts_rank_cd over the product search_vector). Present only on the keyword (q) path; null for hin/model/upc lookups. Higher is more relevant, but scores are not comparable across queries. Computed per request, not stored. Source-independent."
+          },
+          "upc_is_recall_level": {
+            "type": "boolean",
+            "const": true,
+            "title": "Upc Is Recall Level",
+            "description": "Constant True honesty flag: UPC search is recall-level (containment over recall_product_upcs, currently CPSC-sourced and sparse), not product-grain. The per-product upc column is null for every source. Always True; source-independent.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "recall_product_id",
+          "recall_event_id",
+          "source",
+          "source_recall_id",
+          "published_at"
+        ],
+        "title": "ProductSearchHit"
+      },
+      "RecallDetail": {
+        "properties": {
+          "recall_event_id": {
+            "type": "string",
+            "title": "Recall Event Id",
+            "description": "Opaque surrogate id for one recall event, stable across re-extractions: md5('<SOURCE>|<source recall key>'), reused verbatim from silver (ADR 0038). Not a raw agency id — pair source with source_recall_id for the human-facing key. Sources: all five."
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source",
+            "description": "Originating agency feed (closed enum): CPSC, FDA, USDA, NHTSA, USCG. Always populated."
+          },
+          "source_recall_id": {
+            "type": "string",
+            "title": "Source Recall Id",
+            "description": "Agency-native recall identifier; meaning varies by source — CPSC RecallNumber, FDA RECALLEVENTID, USDA field_recall_number (DDD-YYYY), NHTSA CAMPNO, USCG recall Number. Pair with source for global identity. Always populated."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Human-readable recall headline. Native title for CPSC/USDA; synthesized as '<recall-id> — <firm/model name>' for FDA/NHTSA/USCG (no native title). Effectively always populated."
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "Public detail-page URL for the recall. Sources: CPSC, USDA, USCG (null for FDA/NHTSA, which provide no per-recall detail URL)."
+          },
+          "announced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announced At",
+            "description": "Date the recall was first announced/initiated, conformed across all five sources. Nullable: ~20 FDA events lack a trustworthy initiation date. Use published_at when a guaranteed date is required. Sources: all five."
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At",
+            "description": "Last-published/modified date, coalesced per source to always be present — the guaranteed sort/pagination key (contrast nullable announced_at). Sources: all five."
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification",
+            "description": "Recall severity/hazard classification in the source's NATIVE vocabulary (FDA: 1/2/3, NC=Not Yet Classified; USDA: Class I/II/III, Public Health Alert; USCG: H/L/M/S). NOT normalized across sources. Sources: FDA, USDA, USCG (null for CPSC/NHTSA)."
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Level",
+            "description": "USDA health-risk label derived 1:1 from the USDA classification (e.g. 'High - Class I', 'Low - Class II', 'Marginal - Class III', 'Public Health Alert'). Sources: USDA only (null for CPSC/FDA/NHTSA/USCG)."
+          },
+          "lifecycle_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifecycle Status",
+            "description": "Recall lifecycle/status in the source's native vocabulary (FDA: Ongoing/Completed/Terminated; USDA: Active Recall/Closed Recall/Public Health Alert; USCG: Open/Closed). NOT normalized; see is_active for a conformed boolean. Sources: FDA, USDA, USCG (null for CPSC/NHTSA)."
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active",
+            "description": "Conformed tri-state flag for whether the recall is still active, derived from each source's lifecycle field (USDA Public Health Alert counts as active). Sources: FDA, USDA, USCG (null for CPSC/NHTSA, which have no lifecycle concept and so match neither true nor false)."
+          },
+          "reason_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Category",
+            "description": "Categorical recall-reason tokens from USDA's FSIS taxonomy (comma-joined, e.g. 'Unreported Allergens, Misbranding'). Sources: USDA only (null for CPSC/FDA/NHTSA/USCG, whose reasons are free text in recall_reason)."
+          },
+          "distribution_scope": {
+            "type": "string",
+            "title": "Distribution Scope",
+            "description": "Conformed distribution-breadth enum, always populated: Nationwide, International, Regional, or Unspecified. Classified from real distribution text for FDA/USDA; CPSC/USCG default to Unspecified and NHTSA to Nationwide. Sources: all five."
+          },
+          "primary_firm_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Firm Name",
+            "description": "Primary display firm for the recall — the canonical firm name picked by role priority (manufacturer > establishment > filer > importer > distributor, then alphabetical). Null only if no firm resolves. Sources: all five."
+          },
+          "firm_count": {
+            "type": "integer",
+            "title": "Firm Count",
+            "description": "Count of DISTINCT firms linked to this recall across all roles (a firm in multiple roles counts once, so this may be less than len(firms)). 0 when no firm resolves. Sources: all five.",
+            "default": 0
+          },
+          "product_count": {
+            "type": "integer",
+            "title": "Product Count",
+            "description": "Number of distinct product rows for this recall. CPSC/FDA/NHTSA can exceed 1; USDA and USCG are always 1 (modeled one-product-per-recall). Never null. Sources: all five.",
+            "default": 0
+          },
+          "has_been_edited": {
+            "type": "boolean",
+            "title": "Has Been Edited",
+            "description": "True if the pipeline has detected at least one editorially-meaningful change to a tracked event field (recall_reason, classification, lifecycle_status, title, terminated_at) by diffing consecutive bronze snapshots; false otherwise. Observed-edit evidence, NOT a flag of an official agency amendment — cosmetic/whitespace changes are suppressed, tracked fields vary by source, and detection is bounded by snapshot retention and a pipeline reseed (false can mean 'no change seen since the last reseed'). Synthesized; populated for all sources.",
+            "default": false
+          },
+          "recall_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recall Reason",
+            "description": "Free-text recall/defect narrative, conformed across sources (CPSC Description, FDA reason-for-recall, USDA HTML summary, NHTSA defect summary, USCG short problem note). Content type and length vary by source; USDA is HTML-encoded and USCG is truncated to ~25 chars. Sources: all five."
+          },
+          "corrective_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrective Action",
+            "description": "Free-text corrective-action / remedy narrative (what the manufacturer and consumer should do). Sources: NHTSA only (null for CPSC/FDA/USDA/USCG in this model)."
+          },
+          "consequence_of_defect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consequence Of Defect",
+            "description": "Free-text description of what can happen if the defect is not remedied (harm/consequence). Sources: NHTSA only (null for CPSC/FDA/USDA/USCG)."
+          },
+          "distribution_states": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distribution States",
+            "description": "USDA distribution-states as a raw comma-joined string (e.g. 'Nationwide', 'Arizona, California') — prose, not parsed codes. For machine-readable geography use distribution_state_codes. Sources: USDA only (null for CPSC/FDA/NHTSA/USCG)."
+          },
+          "distribution_state_codes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distribution State Codes",
+            "description": "USPS 2-letter state/territory codes for where the recalled product was distributed (initial distribution area). Null when no geography parsed; an empty array indicates a foreign-country-only recall. A precision-first parse (absence of a code is not proof of non-distribution). Sources: FDA, USDA (null for CPSC/NHTSA/USCG)."
+          },
+          "distribution_country_codes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distribution Country Codes",
+            "description": "ISO-3166-1 alpha-2 codes for the FOREIGN countries the product was distributed to (US excluded by design — domestic geography is distribution_state_codes). Null when no geography parsed; an empty array indicates a domestic-only recall. Sources: FDA (null for CPSC/USDA/NHTSA/USCG — the USDA path exists but field_states is states-only today)."
+          },
+          "hazards": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hazards",
+            "description": "CPSC structured hazard array (jsonb objects with a free-text 'Name'; categorical HazardType/HazardTypeID are empty at source). Sources: CPSC only (null for FDA/USDA/NHTSA/USCG). NHTSA's harm narrative is in consequence_of_defect."
+          },
+          "product_upcs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Product Upcs",
+            "description": "Recall-level product UPC codes (gold stores them as [{upc:…}] objects; the API flattens to bare strings, [] when absent). Sources: CPSC only and sparse (~5% of CPSC recalls); empty for FDA/USDA/NHTSA/USCG."
+          },
+          "product_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Product Names",
+            "description": "Deduplicated array of distinct product names (never null; [] when empty). Source-dependent semantics: CPSC = product name; USCG = boat model name; FDA = the product DESCRIPTION text; USDA = the recall TITLE; NHTSA = the COMPONENT description. Sources: all five."
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models",
+            "description": "Deduplicated array of product model identifiers (never null; [] when empty). Populated only for NHTSA (MODELTXT, e.g. 'F-150'); always [] for CPSC, FDA, USDA, USCG. Sources: NHTSA only."
+          },
+          "hins": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hins",
+            "description": "Deduplicated array of USCG Hull Identification Numbers (the boating analog of a VIN/UPC; never null, [] when empty). USCG-only — always [] for CPSC, FDA, USDA, NHTSA; only ~54% of USCG recalls carry a real HIN. Sources: USCG only."
+          },
+          "firms": {
+            "items": {
+              "$ref": "#/components/schemas/FirmRef"
+            },
+            "type": "array",
+            "title": "Firms",
+            "description": "Array of all firms tied to this recall, one object per firm-role ({firm_id, name, role, match_confidence}), ordered by role then name. A firm in multiple roles appears multiple times, so len(firms) can exceed firm_count. Always a (possibly empty) array, never null. Sources: all five."
+          }
+        },
+        "type": "object",
+        "required": [
+          "recall_event_id",
+          "source",
+          "source_recall_id",
+          "published_at",
+          "distribution_scope"
+        ],
+        "title": "RecallDetail",
+        "description": "The full wide row: summary subset + narrative, geo, lifecycle, and the jsonb rollups."
+      },
+      "RecallSearchHit": {
+        "properties": {
+          "recall_event_id": {
+            "type": "string",
+            "title": "Recall Event Id",
+            "description": "Opaque surrogate id for one recall event, stable across re-extractions: md5('<SOURCE>|<source recall key>'), reused verbatim from silver (ADR 0038). Not a raw agency id — pair source with source_recall_id for the human-facing key. Sources: all five."
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source",
+            "description": "Originating agency feed (closed enum): CPSC, FDA, USDA, NHTSA, USCG. Always populated."
+          },
+          "source_recall_id": {
+            "type": "string",
+            "title": "Source Recall Id",
+            "description": "Agency-native recall identifier; meaning varies by source — CPSC RecallNumber, FDA RECALLEVENTID, USDA field_recall_number (DDD-YYYY), NHTSA CAMPNO, USCG recall Number. Pair with source for global identity. Always populated.",
+            "examples": [
+              "24-001"
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Human-readable recall headline. Native title for CPSC/USDA; synthesized as '<recall-id> — <firm/model name>' for FDA/NHTSA/USCG (no native title). Effectively always populated.",
+            "examples": [
+              "Acme Toaster Fire Hazard"
+            ]
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "Public detail-page URL for the recall. Sources: CPSC, USDA, USCG (null for FDA/NHTSA, which provide no per-recall detail URL)."
+          },
+          "announced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announced At",
+            "description": "Date the recall was first announced/initiated, conformed across all five sources. Nullable: ~20 FDA events lack a trustworthy initiation date. Use published_at when a guaranteed date is required. Sources: all five."
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At",
+            "description": "Last-published/modified date, coalesced per source to always be present — the guaranteed sort/pagination key (contrast nullable announced_at). Sources: all five."
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification",
+            "description": "Recall severity/hazard classification in the source's NATIVE vocabulary (FDA: 1/2/3, NC=Not Yet Classified; USDA: Class I/II/III, Public Health Alert; USCG: H/L/M/S). NOT normalized across sources. Sources: FDA, USDA, USCG (null for CPSC/NHTSA).",
+            "examples": [
+              "Class II"
+            ]
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Level",
+            "description": "USDA health-risk label derived 1:1 from the USDA classification (e.g. 'High - Class I', 'Low - Class II', 'Marginal - Class III', 'Public Health Alert'). Sources: USDA only (null for CPSC/FDA/NHTSA/USCG).",
+            "examples": [
+              "Low - Class II"
+            ]
+          },
+          "lifecycle_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifecycle Status",
+            "description": "Recall lifecycle/status in the source's native vocabulary (FDA: Ongoing/Completed/Terminated; USDA: Active Recall/Closed Recall/Public Health Alert; USCG: Open/Closed). NOT normalized; see is_active for a conformed boolean. Sources: FDA, USDA, USCG (null for CPSC/NHTSA)."
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active",
+            "description": "Conformed tri-state flag for whether the recall is still active, derived from each source's lifecycle field (USDA Public Health Alert counts as active). Sources: FDA, USDA, USCG (null for CPSC/NHTSA, which have no lifecycle concept and so match neither true nor false)."
+          },
+          "reason_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Category",
+            "description": "Categorical recall-reason tokens from USDA's FSIS taxonomy (comma-joined, e.g. 'Unreported Allergens, Misbranding'). Sources: USDA only (null for CPSC/FDA/NHTSA/USCG, whose reasons are free text in recall_reason)."
+          },
+          "distribution_scope": {
+            "type": "string",
+            "title": "Distribution Scope",
+            "description": "Conformed distribution-breadth enum, always populated: Nationwide, International, Regional, or Unspecified. Classified from real distribution text for FDA/USDA; CPSC/USCG default to Unspecified and NHTSA to Nationwide. Sources: all five.",
+            "examples": [
+              "Nationwide"
+            ]
+          },
+          "primary_firm_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Firm Name",
+            "description": "Primary display firm for the recall — the canonical firm name picked by role priority (manufacturer > establishment > filer > importer > distributor, then alphabetical). Null only if no firm resolves. Sources: all five."
+          },
+          "firm_count": {
+            "type": "integer",
+            "title": "Firm Count",
+            "description": "Count of DISTINCT firms linked to this recall across all roles (a firm in multiple roles counts once, so this may be less than len(firms)). 0 when no firm resolves. Sources: all five.",
+            "default": 0
+          },
+          "product_count": {
+            "type": "integer",
+            "title": "Product Count",
+            "description": "Number of distinct product rows for this recall. CPSC/FDA/NHTSA can exceed 1; USDA and USCG are always 1 (modeled one-product-per-recall). Never null. Sources: all five.",
+            "default": 0
+          },
+          "has_been_edited": {
+            "type": "boolean",
+            "title": "Has Been Edited",
+            "description": "True if the pipeline has detected at least one editorially-meaningful change to a tracked event field (recall_reason, classification, lifecycle_status, title, terminated_at) by diffing consecutive bronze snapshots; false otherwise. Observed-edit evidence, NOT a flag of an official agency amendment — cosmetic/whitespace changes are suppressed, tracked fields vary by source, and detection is bounded by snapshot retention and a pipeline reseed (false can mean 'no change seen since the last reseed'). Synthesized; populated for all sources.",
+            "default": false
+          },
+          "rank": {
+            "type": "number",
+            "title": "Rank",
+            "description": "Full-text relevance (ts_rank_cd over the recall search_vector, weighted title>brand>cause>harm). Higher is more relevant, but scores are not comparable across queries. Computed per request; present only on the /recalls/search path."
+          }
+        },
+        "type": "object",
+        "required": [
+          "recall_event_id",
+          "source",
+          "source_recall_id",
+          "published_at",
+          "distribution_scope",
+          "rank"
+        ],
+        "title": "RecallSearchHit",
+        "description": "A ``RecallSummary`` plus its FTS relevance ``rank`` (``GET /recalls/search``)."
+      },
+      "RecallSummary": {
+        "properties": {
+          "recall_event_id": {
+            "type": "string",
+            "title": "Recall Event Id",
+            "description": "Opaque surrogate id for one recall event, stable across re-extractions: md5('<SOURCE>|<source recall key>'), reused verbatim from silver (ADR 0038). Not a raw agency id — pair source with source_recall_id for the human-facing key. Sources: all five."
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source",
+            "description": "Originating agency feed (closed enum): CPSC, FDA, USDA, NHTSA, USCG. Always populated."
+          },
+          "source_recall_id": {
+            "type": "string",
+            "title": "Source Recall Id",
+            "description": "Agency-native recall identifier; meaning varies by source — CPSC RecallNumber, FDA RECALLEVENTID, USDA field_recall_number (DDD-YYYY), NHTSA CAMPNO, USCG recall Number. Pair with source for global identity. Always populated.",
+            "examples": [
+              "24-001"
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Human-readable recall headline. Native title for CPSC/USDA; synthesized as '<recall-id> — <firm/model name>' for FDA/NHTSA/USCG (no native title). Effectively always populated.",
+            "examples": [
+              "Acme Toaster Fire Hazard"
+            ]
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "Public detail-page URL for the recall. Sources: CPSC, USDA, USCG (null for FDA/NHTSA, which provide no per-recall detail URL)."
+          },
+          "announced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announced At",
+            "description": "Date the recall was first announced/initiated, conformed across all five sources. Nullable: ~20 FDA events lack a trustworthy initiation date. Use published_at when a guaranteed date is required. Sources: all five."
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At",
+            "description": "Last-published/modified date, coalesced per source to always be present — the guaranteed sort/pagination key (contrast nullable announced_at). Sources: all five."
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification",
+            "description": "Recall severity/hazard classification in the source's NATIVE vocabulary (FDA: 1/2/3, NC=Not Yet Classified; USDA: Class I/II/III, Public Health Alert; USCG: H/L/M/S). NOT normalized across sources. Sources: FDA, USDA, USCG (null for CPSC/NHTSA).",
+            "examples": [
+              "Class II"
+            ]
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Level",
+            "description": "USDA health-risk label derived 1:1 from the USDA classification (e.g. 'High - Class I', 'Low - Class II', 'Marginal - Class III', 'Public Health Alert'). Sources: USDA only (null for CPSC/FDA/NHTSA/USCG).",
+            "examples": [
+              "Low - Class II"
+            ]
+          },
+          "lifecycle_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifecycle Status",
+            "description": "Recall lifecycle/status in the source's native vocabulary (FDA: Ongoing/Completed/Terminated; USDA: Active Recall/Closed Recall/Public Health Alert; USCG: Open/Closed). NOT normalized; see is_active for a conformed boolean. Sources: FDA, USDA, USCG (null for CPSC/NHTSA)."
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active",
+            "description": "Conformed tri-state flag for whether the recall is still active, derived from each source's lifecycle field (USDA Public Health Alert counts as active). Sources: FDA, USDA, USCG (null for CPSC/NHTSA, which have no lifecycle concept and so match neither true nor false)."
+          },
+          "reason_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Category",
+            "description": "Categorical recall-reason tokens from USDA's FSIS taxonomy (comma-joined, e.g. 'Unreported Allergens, Misbranding'). Sources: USDA only (null for CPSC/FDA/NHTSA/USCG, whose reasons are free text in recall_reason)."
+          },
+          "distribution_scope": {
+            "type": "string",
+            "title": "Distribution Scope",
+            "description": "Conformed distribution-breadth enum, always populated: Nationwide, International, Regional, or Unspecified. Classified from real distribution text for FDA/USDA; CPSC/USCG default to Unspecified and NHTSA to Nationwide. Sources: all five.",
+            "examples": [
+              "Nationwide"
+            ]
+          },
+          "primary_firm_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Firm Name",
+            "description": "Primary display firm for the recall — the canonical firm name picked by role priority (manufacturer > establishment > filer > importer > distributor, then alphabetical). Null only if no firm resolves. Sources: all five."
+          },
+          "firm_count": {
+            "type": "integer",
+            "title": "Firm Count",
+            "description": "Count of DISTINCT firms linked to this recall across all roles (a firm in multiple roles counts once, so this may be less than len(firms)). 0 when no firm resolves. Sources: all five.",
+            "default": 0
+          },
+          "product_count": {
+            "type": "integer",
+            "title": "Product Count",
+            "description": "Number of distinct product rows for this recall. CPSC/FDA/NHTSA can exceed 1; USDA and USCG are always 1 (modeled one-product-per-recall). Never null. Sources: all five.",
+            "default": 0
+          },
+          "has_been_edited": {
+            "type": "boolean",
+            "title": "Has Been Edited",
+            "description": "True if the pipeline has detected at least one editorially-meaningful change to a tracked event field (recall_reason, classification, lifecycle_status, title, terminated_at) by diffing consecutive bronze snapshots; false otherwise. Observed-edit evidence, NOT a flag of an official agency amendment — cosmetic/whitespace changes are suppressed, tracked fields vary by source, and detection is bounded by snapshot retention and a pipeline reseed (false can mean 'no change seen since the last reseed'). Synthesized; populated for all sources.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "recall_event_id",
+          "source",
+          "source_recall_id",
+          "published_at",
+          "distribution_scope"
+        ],
+        "title": "RecallSummary",
+        "description": "The list projection — the small, list-relevant subset (not the full wide row)."
+      },
+      "Source": {
+        "type": "string",
+        "enum": [
+          "CPSC",
+          "FDA",
+          "USDA",
+          "NHTSA",
+          "USCG"
+        ],
+        "title": "Source",
+        "description": "The one closed cross-source domain (uppercase). Free 422 on a bad path/query value."
+      },
+      "StatsOverview": {
+        "properties": {
+          "total_recalls": {
+            "type": "integer",
+            "title": "Total Recalls",
+            "description": "Count of recall events (rows in mart_recall_summary)."
+          },
+          "distinct_firms": {
+            "type": "integer",
+            "title": "Distinct Firms",
+            "description": "Count of canonical firms (rows in mart_firm_profile)."
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources",
+            "description": "The feeds covered: CPSC, FDA, USDA, NHTSA, USCG."
+          },
+          "last_rebuilt_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Rebuilt At",
+            "description": "gold_meta.rebuilt_at — when the gold marts were last rebuilt (UTC)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_recalls",
+          "distinct_firms",
+          "sources"
+        ],
+        "title": "StatsOverview",
+        "description": "Headline KPIs for the landing page (API-computed, not a stored ``fct_*``)."
+      },
+      "StatsSource": {
+        "type": "string",
+        "enum": [
+          "CPSC",
+          "FDA",
+          "USDA",
+          "NHTSA",
+          "USCG",
+          "ALL"
+        ],
+        "title": "StatsSource",
+        "description": "The ``fct_*`` source domain — the 5 agency feeds plus the synthesized ``ALL`` rollup.\n\nDistinct from the strict ``Source`` enum (which has no ``ALL``). Per-endpoint population varies:\nmonthly-trend is per-source only (no ``ALL``); by-country is FDA/USDA (+``ALL``); units is\nNHTSA/USCG/FDA/USDA (no ``ALL``, no CPSC). A source absent from a given fact returns ``[]``."
+      },
+      "StatusCount": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Agency feed, or 'ALL'."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "'active' / 'inactive' / 'unknown'. CPSC/NHTSA carry no lifecycle -> 'unknown'."
+          },
+          "event_count": {
+            "type": "integer",
+            "title": "Event Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "status",
+          "event_count"
+        ],
+        "title": "StatusCount",
+        "description": "Active / inactive / unknown recall counts per source (+ the 'ALL' rollup)."
+      },
+      "UnitsRow": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "NHTSA/USCG (units affected) or FDA/USDA (quantity). No 'ALL' rollup."
+          },
+          "unit_category": {
+            "type": "string",
+            "title": "Unit Category",
+            "description": "'count' / 'weight' / 'volume' / 'grouping' — keeps incommensurable units apart; never sum across categories or sources."
+          },
+          "period": {
+            "type": "string",
+            "format": "date",
+            "title": "Period",
+            "description": "Month start."
+          },
+          "recalls_with_units": {
+            "type": "integer",
+            "title": "Recalls With Units"
+          },
+          "total_units": {
+            "type": "number",
+            "title": "Total Units",
+            "description": "Sum of per-recall magnitudes (a recall-magnitude measure, not unique items)."
+          },
+          "avg_units_per_recall": {
+            "type": "number",
+            "title": "Avg Units Per Recall"
+          },
+          "max_units": {
+            "type": "number",
+            "title": "Max Units"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "unit_category",
+          "period",
+          "recalls_with_units",
+          "total_units",
+          "avg_units_per_recall",
+          "max_units"
+        ],
+        "title": "UnitsRow",
+        "description": "Units recalled per source x unit_category x month. NOT cross-source comparable (no 'ALL')."
+      },
+      "UscgManufacturer": {
+        "properties": {
+          "mic": {
+            "type": "string",
+            "title": "Mic"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "dba": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dba"
+          },
+          "parent_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Company"
+          },
+          "parent_mic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Mic"
+          },
+          "past_company_1": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Past Company 1"
+          },
+          "past_company_2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Past Company 2"
+          },
+          "past_company_3": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Past Company 3"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "zip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zip"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "USCG boat-manufacturer directory operating status, passed through verbatim from the scraped USCG directory. Observed warn-guarded live domain (per the data side's accepted_values test as of 2026-06-19): 'In Business', 'Inactive', 'Federal or State Agency'. Not enum-constrained, so a future upstream value still parses. Sources: USCG only."
+          },
+          "in_business": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Business"
+          },
+          "out_of_business": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Out Of Business"
+          },
+          "date_modified": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Modified"
+          },
+          "uscg_directory_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uscg Directory Id"
+          },
+          "detail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Url"
+          },
+          "mic_has_prior_holder": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mic Has Prior Holder"
+          },
+          "mic_oob_recycled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mic Oob Recycled"
+          },
+          "mic_renamed_not_recycled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mic Renamed Not Recycled"
+          },
+          "prior_holders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Prior Holders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mic"
+        ],
+        "title": "UscgManufacturer",
+        "description": "A USCG boat-manufacturer/MIC row (firm_uscg_attributes, join key mic)."
+      },
+      "UsdaEstablishment": {
+        "properties": {
+          "establishment_id": {
+            "type": "string",
+            "title": "Establishment Id"
+          },
+          "establishment_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Establishment Name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "zip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zip"
+          },
+          "county": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "County"
+          },
+          "fips_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fips Code"
+          },
+          "geolocation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geolocation"
+          },
+          "latest_mpi_active_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Mpi Active Date"
+          },
+          "grant_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Date"
+          },
+          "status_regulated_est": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Regulated Est"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "district": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District"
+          },
+          "circuit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Circuit"
+          },
+          "activities": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activities"
+          },
+          "dbas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dbas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "establishment_id"
+        ],
+        "title": "UsdaEstablishment",
+        "description": "A USDA/FSIS establishment row (firm_usda_attributes, join key establishment_id)."
+      }
+    }
+  }
+}

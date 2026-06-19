@@ -3,6 +3,8 @@ node_modules
 .astro
 coverage
 package-lock.json
+# Pinned API contract + its generated types — kept byte-identical for the drift gate
+openapi.json
 src/lib/api/schema.d.ts
 
 # Reference scope drafts — kept verbatim
