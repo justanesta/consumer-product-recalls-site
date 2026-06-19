@@ -1,0 +1,27 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import ApiReference from '@/components/api/ApiReference';
+---
+
+<Layout
+  title="API reference"
+  description="The public, read-only Consumer Product Recalls API — endpoints, pagination, and conventions."
+>
+  <section class="max-w-prose">
+    <h1 class="text-3xl font-bold sm:text-4xl">API reference</h1>
+    <p class="mt-2 text-muted">
+      The site is powered by a public, read-only API. It's open (no key, <code>GET</code> only, open CORS),
+      keyset-paginated, and rate-limited to 60 requests/minute per IP. Base URL:
+      <code>https://consumer-product-recalls-api.fly.dev</code>.
+    </p>
+    <p class="mt-2 text-sm text-muted">
+      The reference below renders directly from the API's <code>openapi.json</code> — it's never hand-maintained.
+      For what the data means and its caveats, see the
+      <a href="/methodology">methodology</a>.
+    </p>
+  </section>
+
+  <div class="mt-6 rounded-lg border border-line">
+    <ApiReference client:only="react" />
+  </div>
+</Layout>

@@ -1,0 +1,146 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import Callout from '@/components/Callout.astro';
+
+const sources = [
+  {
+    code: 'CPSC',
+    name: 'Consumer Product Safety Commission',
+    covers: 'Consumer products — toys, electronics, household goods',
+    classification: '—',
+    lifecycle: '—',
+  },
+  {
+    code: 'FDA',
+    name: 'Food & Drug Administration',
+    covers: 'Food, drugs, medical devices, cosmetics',
+    classification: '1 / 2 / 3 / NC',
+    lifecycle: 'Ongoing / Completed / Terminated',
+  },
+  {
+    code: 'USDA',
+    name: 'USDA Food Safety & Inspection Service',
+    covers: 'Meat, poultry, processed egg products',
+    classification: 'Class I / II / III, Public Health Alert',
+    lifecycle: 'Active / Closed',
+  },
+  {
+    code: 'NHTSA',
+    name: 'National Highway Traffic Safety Administration',
+    covers: 'Vehicles and motor-vehicle equipment',
+    classification: '—',
+    lifecycle: '—',
+  },
+  {
+    code: 'USCG',
+    name: 'U.S. Coast Guard',
+    covers: 'Recreational boats and equipment',
+    classification: 'H / M / L / S',
+    lifecycle: 'Open / Closed',
+  },
+];
+---
+
+<Layout
+  title="Methodology & caveats"
+  description="What this recalls data is and isn't: sources, source-native classifications, the two geography lenses, and the honesty caveats."
+>
+  <div class="max-w-prose">
+    <h1 class="text-3xl font-bold sm:text-4xl">Methodology &amp; caveats</h1>
+    <p class="mt-3 text-muted">
+      This site aggregates five independent U.S. federal recall feeds into one searchable view. They
+      use different vocabularies, scopes, and lifecycles — so we keep each source's data
+      <strong>source-native</strong> and never force a false common scale. Here's what that means.
+    </p>
+
+    <h2 class="mt-8 text-2xl font-bold">The five sources</h2>
+    <div class="mt-3 overflow-x-auto">
+      <table class="w-full min-w-[40rem] border-collapse text-left text-sm">
+        <thead class="border-b border-line text-xs uppercase text-muted">
+          <tr>
+            <th class="py-2 pr-3 font-medium">Source</th>
+            <th class="py-2 pr-3 font-medium">Covers</th>
+            <th class="py-2 pr-3 font-medium">Classification</th>
+            <th class="py-2 font-medium">Lifecycle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            sources.map((s) => (
+              <tr class="border-b border-line align-top">
+                <td class="py-2 pr-3 font-medium">
+                  {s.code}
+                  <span class="block text-xs font-normal text-muted">{s.name}</span>
+                </td>
+                <td class="py-2 pr-3">{s.covers}</td>
+                <td class="py-2 pr-3 font-mono text-xs">{s.classification}</td>
+                <td class="py-2 text-xs">{s.lifecycle}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="mt-10 text-2xl font-bold">Honesty caveats</h2>
+
+    <h3 class="mt-6 text-lg font-semibold">Classifications are source-native</h3>
+    <p class="mt-1 text-muted">
+      FDA uses <code>1/2/3/NC</code>, USDA uses <code>Class I/II/III</code> plus
+      <code>Public Health Alert</code>, USCG uses <code>H/M/L/S</code>, and CPSC and NHTSA have
+      none. These are <strong>not comparable across agencies</strong> — an FDA "Class 2" is not a USDA
+      "Class II". We never show a single global classification legend.
+    </p>
+
+    <h3 class="mt-6 text-lg font-semibold">Status is tri-state</h3>
+    <p class="mt-1 text-muted">
+      Only FDA, USDA, and USCG track an active/inactive lifecycle. CPSC and NHTSA carry none, so
+      their recalls show <strong>"No lifecycle"</strong> — not a false "Inactive".
+    </p>
+
+    <h3 class="mt-6 text-lg font-semibold">Geography has two distinct lenses</h3>
+    <p class="mt-1 text-muted">
+      <strong>Distribution</strong> (where a product was sent; FDA/USDA only) and
+      <strong>firm registration</strong> (where the responsible firm is registered) answer different questions.
+      Registration is <em>not</em> where the product went or where harm occurred. On the
+      <a href="/dashboards">dashboards</a> these are two separate maps, never one toggle. Also, a recall
+      counts in every state it touches, so per-state counts sum to more than the total.
+    </p>
+
+    <h3 class="mt-6 text-lg font-semibold">Units recalled aren't comparable</h3>
+    <p class="mt-1 text-muted">
+      Reported units (NHTSA/USCG) and quantities (FDA/USDA) are a recall-magnitude measure, not
+      unique items, and use incommensurable categories (count / weight / volume). Never sum them
+      across sources or categories.
+    </p>
+
+    <h3 class="mt-6 text-lg font-semibold">UPC matching is recall-level and sparse</h3>
+    <p class="mt-1 text-muted">
+      There is no per-product UPC. UPC search matches a recall-level list that is CPSC-sourced and
+      covers only ~5% of CPSC recalls. For vehicles and boats, use the model and HIN fields.
+    </p>
+
+    <h3 class="mt-6 text-lg font-semibold">"Revised" has no date</h3>
+    <p class="mt-1 text-muted">
+      A recall marked <strong>revised</strong> means the pipeline detected an editorially-meaningful change
+      since first ingest — it is observed-edit evidence, not an official agency amendment, and carries
+      no date.
+    </p>
+
+    <Callout title="Counts reflect reporting, not risk" class="mt-8">
+      <p>
+        A source with more recalls isn't "less safe" — counts reflect each agency's reporting scope,
+        history, and granularity. Treat cross-source comparisons with care, and read the
+        <a href="/api">API reference</a> for field-level provenance. A "no match" in
+        <a href="/search">search</a> only covers these five sources.
+      </p>
+    </Callout>
+
+    <h2 class="mt-10 text-2xl font-bold">How it's built</h2>
+    <p class="mt-1 text-muted">
+      A Python data pipeline ingests the five feeds nightly into Postgres gold tables; a FastAPI
+      service serves them read-only; and this site pulls the slow-moving aggregates at build time
+      and fetches per-recall data live. See <a href="/about">about</a>.
+    </p>
+  </div>
+</Layout>
