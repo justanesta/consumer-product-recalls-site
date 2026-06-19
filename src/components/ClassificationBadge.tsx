@@ -1,22 +1,10 @@
----
 import {
   classificationHint,
   classificationTone,
   type SeverityTone,
 } from '@/lib/domain/classification';
+import { cn } from '@/lib/utils/cn';
 
-interface Props {
-  source: string;
-  classification?: string | null;
-  riskLevel?: string | null;
-  class?: string;
-}
-
-const { source, classification, riskLevel, class: className = '' } = Astro.props;
-const tone = classificationTone(source, classification);
-const hint = classificationHint(source, classification);
-
-// Source-native text, severity-tinted (color is decorative; the raw label carries the meaning).
 const TONE_CLASSES: Record<SeverityTone, string> = {
   high: 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-400/20',
   medium:
@@ -25,24 +13,43 @@ const TONE_CLASSES: Record<SeverityTone, string> = {
   info: 'bg-slate-100 text-slate-700 ring-slate-500/20 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-400/20',
   none: '',
 };
----
 
-{
-  classification ? (
+export interface ClassificationBadgeProps {
+  source: string;
+  classification?: string | null;
+  riskLevel?: string | null;
+  className?: string;
+}
+
+/** Source-native classification, severity-tinted (the raw label carries the meaning). */
+export default function ClassificationBadge({
+  source,
+  classification,
+  riskLevel,
+  className,
+}: ClassificationBadgeProps) {
+  if (!classification) {
+    return (
+      <span
+        className={cn('text-xs text-muted', className)}
+        title="No classification for this source"
+      >
+        —
+      </span>
+    );
+  }
+  const tone = classificationTone(source, classification);
+  return (
     <span
-      class:list={[
+      className={cn(
         'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset',
         TONE_CLASSES[tone],
         className,
-      ]}
-      title={hint}
+      )}
+      title={classificationHint(source, classification)}
     >
       {classification}
       {riskLevel && riskLevel !== classification ? ` · ${riskLevel}` : ''}
     </span>
-  ) : (
-    <span class:list={['text-xs text-muted', className]} title="No classification for this source">
-      —
-    </span>
-  )
+  );
 }

@@ -1,0 +1,21 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import RecallsBrowser from '@/components/recalls/RecallsBrowser';
+---
+
+<Layout
+  title="Browse recalls"
+  description="Filter and search every U.S. consumer product recall across CPSC, FDA, USDA, NHTSA, and USCG."
+>
+  <section class="max-w-prose">
+    <h1 class="text-3xl font-bold sm:text-4xl">Browse recalls</h1>
+    <p class="mt-2 text-muted">
+      Filter by source, classification, status, scope, date, and firm — or search by keyword. The
+      active filters live in the URL, so any view you build is shareable.
+    </p>
+  </section>
+
+  <div class="mt-6">
+    <RecallsBrowser client:load />
+  </div>
+</Layout>
