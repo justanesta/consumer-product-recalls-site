@@ -1,0 +1,21 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import ProductSearch from '@/components/search/ProductSearch';
+---
+
+<Layout
+  title="Is my product recalled?"
+  description="Search U.S. consumer product recalls by product name, model, or HIN across CPSC, FDA, USDA, NHTSA, and USCG."
+>
+  <section class="max-w-prose">
+    <h1 class="text-3xl font-bold sm:text-4xl">Is my product recalled?</h1>
+    <p class="mt-2 text-muted">
+      Search by product name or an exact identifier across all five sources. Results link to the
+      full recall notice.
+    </p>
+  </section>
+
+  <div class="mt-6">
+    <ProductSearch client:load />
+  </div>
+</Layout>
