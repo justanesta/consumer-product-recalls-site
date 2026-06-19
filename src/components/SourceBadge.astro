@@ -1,0 +1,25 @@
+---
+import { getSourceMeta } from '@/lib/domain/sources';
+
+interface Props {
+  source: string;
+  /** Show the full agency name instead of the short code. */
+  full?: boolean;
+  class?: string;
+}
+
+const { source, full = false, class: className = '' } = Astro.props;
+const meta = getSourceMeta(source);
+const hex = meta?.hex ?? '#64748b';
+---
+
+<span
+  class:list={[
+    'inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2 py-0.5 text-xs font-medium text-ink',
+    className,
+  ]}
+  title={meta?.name ?? source}
+>
+  <span class="h-2 w-2 shrink-0 rounded-full" style={`background:${hex}`} aria-hidden="true"></span>
+  {full ? (meta?.name ?? source) : (meta?.label ?? source)}
+</span>
