@@ -45,6 +45,7 @@ const nav = [
     <meta property="og:url" content={canonical} />
     {ogImage && <meta property="og:image" content={ogImage} />}
     <meta name="twitter:card" content="summary_large_image" />
+    <slot name="head" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -61,6 +62,16 @@ const nav = [
         document.documentElement.classList.toggle('dark', dark);
       })();
     </script>
+    {
+      import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN && (
+        <script
+          is:inline
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon={`{"token": "${import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN}"}`}
+        />
+      )
+    }
   </head>
   <body class="flex min-h-screen flex-col">
     <a
@@ -96,11 +107,16 @@ const nav = [
     </main>
 
     <footer class="border-t border-line text-sm text-muted">
-      <div class="mx-auto w-full max-w-6xl px-4 py-6">
-        <p>
-          Data aggregated from CPSC, FDA, USDA, NHTSA, and USCG. Not affiliated with any agency. See
-          <a href="/methodology">methodology &amp; caveats</a>.
-        </p>
+      <div
+        class="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p>Data from CPSC, FDA, USDA, NHTSA, and USCG. Not affiliated with any agency.</p>
+        <nav aria-label="Footer" class="flex flex-wrap gap-4">
+          <a href="/methodology" class="no-underline hover:underline">Methodology</a>
+          <a href="/about" class="no-underline hover:underline">About</a>
+          <a href="/api" class="no-underline hover:underline">API</a>
+          <a href="/rss.xml" class="no-underline hover:underline">RSS</a>
+        </nav>
       </div>
     </footer>
 

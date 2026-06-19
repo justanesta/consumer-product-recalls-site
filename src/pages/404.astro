@@ -1,0 +1,16 @@
+---
+import Layout from '@/layouts/Layout.astro';
+---
+
+<Layout title="Page not found" noindex={true}>
+  <div class="max-w-prose">
+    <h1 class="text-3xl font-bold sm:text-4xl">Page not found</h1>
+    <p class="mt-3 text-muted">We couldn't find that page. Try one of these:</p>
+    <ul class="mt-3 list-inside list-disc space-y-1 text-muted">
+      <li><a href="/">Home</a></li>
+      <li><a href="/recalls">Browse recalls</a></li>
+      <li><a href="/search">Is my product recalled?</a></li>
+      <li><a href="/dashboards">Dashboards</a></li>
+    </ul>
+  </div>
+</Layout>

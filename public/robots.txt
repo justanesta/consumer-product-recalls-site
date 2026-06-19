@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /recall-view
+Disallow: /firm-view
+
+Sitemap: https://consumer-product-recalls.info/sitemap-index.xml

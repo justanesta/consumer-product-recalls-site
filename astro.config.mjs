@@ -6,5 +6,12 @@ import sitemap from '@astrojs/sitemap';
 // https://astro.build/config
 export default defineConfig({
   site: 'https://consumer-product-recalls.info',
-  integrations: [react(), tailwind({ applyBaseStyles: false }), sitemap()],
+  integrations: [
+    react(),
+    tailwind({ applyBaseStyles: false }),
+    sitemap({
+      // Keep the noindex client-fetch viewer shells out of the sitemap.
+      filter: (page) => !page.includes('/recall-view') && !page.includes('/firm-view'),
+    }),
+  ],
 });
