@@ -1,0 +1,39 @@
+---
+import type { FirmLeaderRow } from '@/lib/api/stats';
+import { formatNumber } from '@/lib/format';
+
+interface Props {
+  firms: FirmLeaderRow[];
+}
+
+const { firms } = Astro.props;
+const max = Math.max(1, ...firms.map((f) => f.event_count));
+---
+
+<ol class="space-y-2">
+  {
+    firms.map((firm, i) => (
+      <li class="grid grid-cols-[1.5rem_1fr_4rem] items-center gap-3">
+        <span class="text-right text-sm tabular-nums text-muted">{i + 1}</span>
+        <div class="min-w-0">
+          <a
+            href={`/firms/${firm.firm_id}`}
+            class="block truncate font-medium text-ink no-underline hover:underline"
+            title={firm.canonical_name}
+          >
+            {firm.canonical_name}
+          </a>
+          <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-brand/15">
+            <div
+              class="h-full rounded-full bg-brand"
+              style={`width:${((firm.event_count / max) * 100).toFixed(1)}%`}
+            />
+          </div>
+        </div>
+        <span class="text-right text-sm font-medium tabular-nums">
+          {formatNumber(firm.event_count)}
+        </span>
+      </li>
+    ))
+  }
+</ol>

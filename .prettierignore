@@ -9,3 +9,6 @@ src/lib/api/schema.d.ts
 
 # Reference scope drafts — kept verbatim
 project_scope
+
+# Vendored geodata
+public/geo

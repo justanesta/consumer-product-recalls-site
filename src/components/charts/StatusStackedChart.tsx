@@ -1,0 +1,58 @@
+import * as Plot from '@observablehq/plot';
+import { useCallback } from 'react';
+import Chart from '@/components/Chart';
+import {
+  STATUS_LABEL,
+  STATUS_ORDER,
+  type StatusDatum,
+  type StatusKey,
+} from '@/lib/charts/dashboard';
+import { SOURCE_ORDER } from '@/lib/domain/sources';
+import { formatNumber } from '@/lib/format';
+
+const STATUS_COLOR: Record<StatusKey, string> = {
+  active: '#b91c1c',
+  inactive: '#475569',
+  unknown: '#9ca3af',
+};
+
+export interface StatusStackedChartProps {
+  data: StatusDatum[];
+  title: string;
+  caption?: string;
+}
+
+export default function StatusStackedChart({ data, title, caption }: StatusStackedChartProps) {
+  const sources = SOURCE_ORDER.filter((s) => data.some((d) => d.source === s));
+  const height = 56 + sources.length * 42;
+
+  const spec = useCallback(
+    (width: number): Plot.PlotOptions => ({
+      width,
+      height,
+      marginLeft: 56,
+      style: { background: 'transparent' },
+      x: { label: 'recalls', grid: true },
+      y: { label: null, domain: sources },
+      color: {
+        domain: STATUS_ORDER,
+        range: STATUS_ORDER.map((s) => STATUS_COLOR[s]),
+        legend: true,
+        tickFormat: (s: StatusKey) => STATUS_LABEL[s],
+      },
+      marks: [Plot.barX(data, { x: 'count', y: 'source', fill: 'status' }), Plot.ruleX([0])],
+    }),
+    [data, height, sources],
+  );
+
+  const table = {
+    columns: ['Source', 'Status', 'Recalls'],
+    rows: data.map((d): [string, string, string] => [
+      d.source,
+      STATUS_LABEL[d.status],
+      formatNumber(d.count),
+    ]),
+  };
+
+  return <Chart spec={spec} title={title} caption={caption} table={table} height={height} />;
+}
