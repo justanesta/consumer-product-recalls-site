@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PUBLIC_API_URL: https://consumer-product-recalls-api.fly.dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Regenerate API types and fail on contract drift
+        run: |
+          curl -sSf "$PUBLIC_API_URL/openapi.json" -o openapi.json
+          npm run gen:api
+          if ! git diff --exit-code openapi.json src/lib/api/schema.d.ts; then
+            echo "::error::API contract drift — the deployed spec differs from the committed one. Review /api and re-commit openapi.json + schema.d.ts."
+            exit 1
+          fi
+
+      - run: npm run lint
+      - run: npm run check
+      - run: npm test
+      - run: npm run build

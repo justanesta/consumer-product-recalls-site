@@ -1,0 +1,41 @@
+name: Daily rebuild
+
+# Refresh the build-time-baked /stats/* aggregates after the pipeline's nightly
+# (~03:00 UTC) rebuild. NOTE: GitHub's `schedule:` only fires on the default
+# branch, so this must be on main to run at all.
+on:
+  schedule:
+    - cron: '30 5 * * *' # 05:30 UTC daily
+  workflow_dispatch:
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe API readiness (wake + retry past cold start)
+        id: probe
+        run: |
+          api="https://consumer-product-recalls-api.fly.dev"
+          curl -s -o /dev/null --max-time 30 "$api/health" || true
+          status="000"
+          for i in 1 2 3 4; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$api/health/db" || echo "000")
+            [ "$status" = "200" ] && break
+            sleep 8
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Cloudflare Pages deploy
+        if: steps.probe.outputs.status == '200'
+        run: |
+          if [ -z "${{ secrets.CF_PAGES_DEPLOY_HOOK }}" ]; then
+            echo "::error::CF_PAGES_DEPLOY_HOOK secret is not set."
+            exit 1
+          fi
+          curl -sSf -X POST "${{ secrets.CF_PAGES_DEPLOY_HOOK }}"
+          echo "Triggered Cloudflare Pages rebuild."
+
+      - name: Skip (API not ready)
+        if: steps.probe.outputs.status != '200'
+        run: |
+          echo "API not ready (status=${{ steps.probe.outputs.status }}); skipping deploy so the last-good build stays live."
