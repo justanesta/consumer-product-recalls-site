@@ -1,0 +1,8 @@
+# Claude Code (per-user, not committed — Claude still reads these from local disk)
+.claude/skills/
+.claude/agents/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Local-only project notes
+CLAUDE.local.md
