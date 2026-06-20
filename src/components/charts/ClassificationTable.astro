@@ -1,0 +1,88 @@
+---
+import ClassificationBadge from '@/components/ClassificationBadge';
+import SourceBadge from '@/components/SourceBadge';
+import type { ClassificationGroup } from '@/lib/charts/transforms';
+import { getSourceMeta } from '@/lib/domain/sources';
+import { formatNumber } from '@/lib/format';
+
+interface Props {
+  groups: ClassificationGroup[];
+}
+const { groups } = Astro.props as Props;
+
+// Mark USCG with a footnote: its H/M/L/S severity semantics are not publicly
+// documented, so the order/color shown here is provisional (see methodology).
+const hasUscg = groups.some((g) => g.source === 'USCG');
+---
+
+<figure class="m-0">
+  <div class="overflow-x-auto rounded-lg border border-line">
+    <table class="w-full min-w-[28rem] text-left text-sm">
+      <caption class="sr-only">
+        Recall counts by source-native classification. Classifications are not comparable across
+        sources.
+      </caption>
+      <thead class="border-b border-line bg-surface text-xs uppercase tracking-wide text-muted">
+        <tr>
+          <th scope="col" class="px-3 py-2 font-medium">Source</th>
+          <th scope="col" class="px-3 py-2 font-medium">Classification</th>
+          <th scope="col" class="px-3 py-2 text-right font-medium">Recalls</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          groups.map((group) => (
+            <Fragment>
+              {group.rows.map((row, i) => (
+                <tr class="border-b border-line last:border-0 hover:bg-surface">
+                  {i === 0 && (
+                    <th
+                      scope="rowgroup"
+                      rowspan={group.rows.length}
+                      class="border-r border-line px-3 py-2 align-top font-medium"
+                    >
+                      <SourceBadge source={group.source} />
+                      {group.source === 'USCG' && (
+                        <sup class="ml-0.5 text-muted" aria-hidden="true">
+                          †
+                        </sup>
+                      )}
+                      <span class="mt-1 block text-xs font-normal text-muted">
+                        {getSourceMeta(group.source)?.name ?? group.source}
+                      </span>
+                    </th>
+                  )}
+                  <td class="px-3 py-2">
+                    {row.tone === 'none' ? (
+                      <span class="text-xs text-muted">Unclassified</span>
+                    ) : (
+                      <ClassificationBadge
+                        source={group.source}
+                        classification={row.classification}
+                      />
+                    )}
+                  </td>
+                  <td class="px-3 py-2 text-right tabular-nums">{formatNumber(row.count)}</td>
+                </tr>
+              ))}
+            </Fragment>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+  <figcaption class="mt-2 space-y-1 text-sm text-muted">
+    <p>
+      Each agency's own severity vocabulary, shown separately — classifications are source-native
+      and <strong>not comparable across sources</strong>.
+    </p>
+    {
+      hasUscg && (
+        <p class="text-xs">
+          † USCG severity codes (H/M/L/S) are not officially documented; the order and color shown
+          are provisional. See <a href="/methodology">methodology</a>.
+        </p>
+      )
+    }
+  </figcaption>
+</figure>

@@ -3,9 +3,9 @@ import Layout from '@/layouts/Layout.astro';
 import Callout from '@/components/Callout.astro';
 import AreaTrendChart from '@/components/charts/AreaTrendChart';
 import SourceTotalsChart from '@/components/charts/SourceTotalsChart';
-import ClassificationFacetChart from '@/components/charts/ClassificationFacetChart';
+import ClassificationTable from '@/components/charts/ClassificationTable.astro';
 import { getByClassification, getRecallsByPeriod, withRetry } from '@/lib/api';
-import { classificationBySource, monthlyTrend, perSourceTotals } from '@/lib/charts/transforms';
+import { classificationTableGroups, monthlyTrend, perSourceTotals } from '@/lib/charts/transforms';
 
 // Build-time pull of the slow-moving aggregates (retried hard; fails the build loudly).
 const [byPeriod, byClass] = await Promise.all([
@@ -15,7 +15,7 @@ const [byPeriod, byClass] = await Promise.all([
 
 const trend = monthlyTrend(byPeriod, { source: 'ALL', sinceYear: 2012 });
 const sourceTotals = perSourceTotals(byClass);
-const classification = classificationBySource(byClass);
+const classificationGroups = classificationTableGroups(byClass);
 ---
 
 <Layout
@@ -68,12 +68,9 @@ const classification = classificationBySource(byClass);
   <section class="mt-12">
     <h2 class="text-2xl font-bold">By classification</h2>
     <p class="mt-1 text-sm text-muted">Each agency's own severity vocabulary — shown separately.</p>
-    <ClassificationFacetChart
-      client:visible
-      data={classification}
-      title="Recalls by source-native classification, faceted by source"
-      caption="Classifications are source-native (FDA 1/2/3/NC, USDA Class I/II/III, USCG H/L/M/S; CPSC/NHTSA carry none) and are NOT comparable across sources."
-    />
+    <div class="mt-4 max-w-2xl">
+      <ClassificationTable groups={classificationGroups} />
+    </div>
   </section>
 
   <section class="mt-12 max-w-prose">

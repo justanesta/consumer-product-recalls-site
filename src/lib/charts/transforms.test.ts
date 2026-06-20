@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassificationCount, PeriodCount } from '@/lib/api/stats';
-import { classificationBySource, monthlyTrend, perSourceTotals } from './transforms';
+import {
+  classificationBySource,
+  classificationTableGroups,
+  monthlyTrend,
+  perSourceTotals,
+} from './transforms';
 
 const periods: PeriodCount[] = [
   { period: '2010-01-01', source: 'ALL', event_count: 5 },
@@ -45,5 +50,23 @@ describe('classificationBySource', () => {
       tone: 'high',
     });
     expect(data.some((d) => d.source === 'ALL')).toBe(false);
+  });
+});
+
+describe('classificationTableGroups', () => {
+  it('puts classified sources first and orders rows by severity, not count', () => {
+    const groups = classificationTableGroups(classes);
+
+    // FDA (classifies) leads; CPSC (unclassified) trails.
+    expect(groups.map((g) => g.source)).toEqual(['FDA', 'CPSC']);
+
+    const fda = groups[0];
+    expect(fda).toMatchObject({ total: 70, classified: true });
+    // '1' (high) precedes '2' (medium) even though '2' has the larger count.
+    expect(fda?.rows.map((r) => r.classification)).toEqual(['1', '2']);
+
+    const cpsc = groups[1];
+    expect(cpsc).toMatchObject({ total: 30, classified: false });
+    expect(cpsc?.rows[0]?.classification).toBe('Unclassified');
   });
 });
