@@ -117,7 +117,9 @@ export default function FirmEstablishments({ profile }: { profile: FirmProfile }
                 <DefRow label="Status">{m.status}</DefRow>
                 <DefRow label="In business">
                   {m.in_business || m.out_of_business
-                    ? `${m.in_business ?? '—'}${m.out_of_business ? ` – ${m.out_of_business}` : ''}`
+                    ? `${m.in_business ? formatDate(m.in_business) : '—'}${
+                        m.out_of_business ? ` – ${formatDate(m.out_of_business)}` : ''
+                      }`
                     : null}
                 </DefRow>
                 <DefRow label="Parent">{m.parent_company}</DefRow>
