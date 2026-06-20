@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import Chart from '@/components/Chart';
 import type { TrendSeriesPoint } from '@/lib/charts/dashboard';
 import { sourceColor } from '@/lib/domain/sources';
-import { formatNumber } from '@/lib/format';
+import { formatMonth, formatNumber, recallsLabel } from '@/lib/format';
 
 export interface MonthlyTrendChartProps {
   data: TrendSeriesPoint[];
@@ -43,6 +43,17 @@ export default function MonthlyTrendChart({ data, title, caption }: MonthlyTrend
           },
         ),
         Plot.ruleY([0]),
+        Plot.tip(
+          data,
+          Plot.pointerX({
+            x: (d: TrendSeriesPoint) => new Date(d.month),
+            y: 'count',
+            fy: 'source',
+            title: (d: TrendSeriesPoint) =>
+              `${d.source} · ${formatMonth(d.month)}\n${recallsLabel(d.count)}` +
+              (d.rolling != null ? `\n3-mo avg ${d.rolling.toFixed(1)}` : ''),
+          }),
+        ),
       ],
     }),
     [data, height],

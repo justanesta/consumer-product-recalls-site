@@ -8,7 +8,7 @@ import {
   type StatusKey,
 } from '@/lib/charts/dashboard';
 import { SOURCE_ORDER } from '@/lib/domain/sources';
-import { formatNumber } from '@/lib/format';
+import { formatNumber, recallsLabel } from '@/lib/format';
 
 const STATUS_COLOR: Record<StatusKey, string> = {
   active: '#b91c1c',
@@ -47,7 +47,17 @@ export default function StatusStackedChart({ data, title, caption }: StatusStack
         legend: true,
         tickFormat: (s: StatusKey) => STATUS_LABEL[s],
       },
-      marks: [Plot.barX(data, { x: 'count', y: 'source', fill: 'status' }), Plot.ruleX([0])],
+      marks: [
+        Plot.barX(data, {
+          x: 'count',
+          y: 'source',
+          fill: 'status',
+          title: (d: StatusDatum) =>
+            `${d.source} · ${STATUS_LABEL[d.status]}\n${recallsLabel(d.count)}`,
+          tip: true,
+        }),
+        Plot.ruleX([0]),
+      ],
     }),
     [data, height, sources],
   );
