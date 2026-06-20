@@ -1,6 +1,7 @@
 import type { FirmProfile as FirmProfileType } from '@/lib/api/firms';
 import { getSourceMeta, SOURCE_ORDER, sourceColor } from '@/lib/domain/sources';
 import { formatDate, formatNumber } from '@/lib/format';
+import FirmEstablishments from './FirmEstablishments';
 
 function Kpi({ label, value }: { label: string; value: string | number }) {
   return (
@@ -47,7 +48,13 @@ export default function FirmProfile({ profile }: { profile: FirmProfileType }) {
         </div>
       )}
 
-      <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {profile.first_recall_at && (
+        <p className="mt-2 text-sm text-muted">
+          Recalls span {formatDate(profile.first_recall_at)} – {formatDate(profile.last_recall_at)}.
+        </p>
+      )}
+
+      <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kpi label="Total recalls" value={formatNumber(profile.total_recalls)} />
         <Kpi label="Active" value={formatNumber(profile.active_recalls)} />
         <Kpi label="Products" value={formatNumber(profile.distinct_products)} />
@@ -79,6 +86,8 @@ export default function FirmProfile({ profile }: { profile: FirmProfileType }) {
           </ul>
         </section>
       )}
+
+      <FirmEstablishments profile={profile} />
     </article>
   );
 }
