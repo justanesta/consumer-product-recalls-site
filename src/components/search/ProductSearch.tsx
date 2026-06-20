@@ -48,32 +48,49 @@ function ResultRow({ hit }: { hit: ProductSearchHit }) {
 
 function Search() {
   const [q, setQ] = useState('');
+  const [upc, setUpc] = useState('');
   const [hin, setHin] = useState('');
   const [model, setModel] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [submitted, setSubmitted] = useState<ProductSearchQuery | null>(null);
 
   useEffect(() => {
-    const urlQ = new URLSearchParams(window.location.search).get('q') ?? '';
-    if (urlQ) {
-      setQ(urlQ);
-      setSubmitted({ q: urlQ });
-    }
+    const params = new URLSearchParams(window.location.search);
+    const urlQ = params.get('q') ?? '';
+    const urlUpc = params.get('upc') ?? '';
+    const urlHin = params.get('hin') ?? '';
+    const urlModel = params.get('model') ?? '';
+    if (urlQ) setQ(urlQ);
+    if (urlUpc) setUpc(urlUpc);
+    if (urlHin) setHin(urlHin);
+    if (urlModel) setModel(urlModel);
+    // Open the identifier panel if the link landed on one of its fields.
+    if (urlUpc || urlHin || urlModel) setShowAdvanced(true);
+    const initial: ProductSearchQuery = {};
+    if (urlQ) initial.q = urlQ;
+    if (urlUpc) initial.upc = urlUpc;
+    if (urlHin) initial.hin = urlHin;
+    if (urlModel) initial.model = urlModel;
+    if (Object.keys(initial).length > 0) setSubmitted(initial);
   }, []);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const query: ProductSearchQuery = {};
     if (q.trim()) query.q = q.trim();
+    if (upc.trim()) query.upc = upc.trim();
     if (hin.trim()) query.hin = hin.trim();
     if (model.trim()) query.model = model.trim();
-    if (!query.q && !query.hin && !query.model) {
+    if (!query.q && !query.upc && !query.hin && !query.model) {
       setSubmitted(null);
       return;
     }
     setSubmitted(query);
     const usp = new URLSearchParams();
     if (query.q) usp.set('q', query.q);
+    if (query.upc) usp.set('upc', query.upc);
+    if (query.hin) usp.set('hin', query.hin);
+    if (query.model) usp.set('model', query.model);
     window.history.replaceState(null, '', usp.toString() ? `?${usp}` : window.location.pathname);
   };
 
@@ -111,31 +128,47 @@ function Search() {
             className="text-sm text-brand underline"
             aria-expanded={showAdvanced}
           >
-            {showAdvanced ? 'Hide' : 'Search by exact identifier (HIN / model)'}
+            {showAdvanced ? 'Hide' : 'Search by exact identifier (UPC / model / HIN)'}
           </button>
           {showAdvanced && (
-            <div className="mt-2 grid grid-cols-2 gap-3">
+            <div className="mt-2 space-y-3">
               <div>
-                <label htmlFor="s-model" className="block text-xs text-muted">
-                  Model (NHTSA)
+                <label htmlFor="s-upc" className="block text-xs text-muted">
+                  UPC (product barcode; recall-level, mostly CPSC)
                 </label>
                 <input
-                  id="s-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  id="s-upc"
+                  inputMode="numeric"
+                  value={upc}
+                  onChange={(e) => setUpc(e.target.value)}
+                  placeholder="e.g. 081234567890"
                   className={INPUT}
+                  autoComplete="off"
                 />
               </div>
-              <div>
-                <label htmlFor="s-hin" className="block text-xs text-muted">
-                  HIN (USCG boats)
-                </label>
-                <input
-                  id="s-hin"
-                  value={hin}
-                  onChange={(e) => setHin(e.target.value)}
-                  className={INPUT}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="s-model" className="block text-xs text-muted">
+                    Model (NHTSA)
+                  </label>
+                  <input
+                    id="s-model"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="s-hin" className="block text-xs text-muted">
+                    HIN (USCG boats)
+                  </label>
+                  <input
+                    id="s-hin"
+                    value={hin}
+                    onChange={(e) => setHin(e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
               </div>
             </div>
           )}
