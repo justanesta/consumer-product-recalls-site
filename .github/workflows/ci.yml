@@ -33,10 +33,17 @@ jobs:
 
       - name: Regenerate API types and fail on contract drift
         run: |
-          curl -sSf "$PUBLIC_API_URL/openapi.json" -o openapi.json
+          # FastAPI serves compact JSON; normalize to the committed pretty form
+          # (indent=2, ensure_ascii=False, trailing newline) so the diff reflects
+          # real spec changes, not formatting. Keep openapi.json and
+          # public/openapi.json (the Scalar /api source) in sync.
+          curl -sSf "$PUBLIC_API_URL/openapi.json" \
+            | python3 -c "import json,sys; json.dump(json.load(sys.stdin), sys.stdout, indent=2, ensure_ascii=False)" > openapi.json
+          printf '\n' >> openapi.json
+          cp openapi.json public/openapi.json
           npm run gen:api
-          if ! git diff --exit-code openapi.json src/lib/api/schema.d.ts; then
-            echo "::error::API contract drift — the deployed spec differs from the committed one. Review /api and re-commit openapi.json + schema.d.ts."
+          if ! git diff --exit-code openapi.json public/openapi.json src/lib/api/schema.d.ts; then
+            echo "::error::API contract drift — the deployed spec differs from the committed copy. Re-sync: curl the spec, format (indent=2, ensure_ascii=False), npm run gen:api, then commit openapi.json + public/openapi.json + schema.d.ts."
             exit 1
           fi
 
