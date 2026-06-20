@@ -16,31 +16,30 @@ import {
   getRecallsByPeriod,
   getStatusBreakdown,
   getUnits,
+  pingDb,
   withRetry,
 } from '@/lib/api';
 import { classificationBySource, monthlyTrend } from '@/lib/charts/transforms';
 import { geographyData, sourceTrend, statusBySource, unitsData } from '@/lib/charts/dashboard';
 
-// Build-time pull of every dashboard aggregate (each retried; the build fails loud if the API is down).
-const [
-  trendRows,
-  weekRows,
-  monthRows,
-  yearRows,
-  classRows,
-  statusRows,
-  leaders,
-  geoDist,
-  geoFirm,
-  unitsRows,
-] = await Promise.all([
+// Pre-warm the API (wakes the Fly machine + Neon) before the build-time burst.
+await pingDb();
+
+// Pull the dashboard aggregates in small concurrency-limited groups — a burst of
+// simultaneous connects can time out against a cold free-tier host. Each call is
+// retried; the build fails loud if the API stays down.
+const [trendRows, weekRows, monthRows, yearRows] = await Promise.all([
   withRetry(() => getMonthlyTrend()),
   withRetry(() => getRecallsByPeriod({ grain: 'week', source: 'ALL' })),
   withRetry(() => getRecallsByPeriod({ grain: 'month', source: 'ALL' })),
   withRetry(() => getRecallsByPeriod({ grain: 'year', source: 'ALL' })),
+]);
+const [classRows, statusRows, leaders] = await Promise.all([
   withRetry(() => getByClassification()),
   withRetry(() => getStatusBreakdown()),
   withRetry(() => getFirmLeaderboard({ limit: 15 })),
+]);
+const [geoDist, geoFirm, unitsRows] = await Promise.all([
   withRetry(() => getByGeography({ basis: 'distribution', source: 'ALL' })),
   withRetry(() => getByGeography({ basis: 'firm_registration', source: 'ALL' })),
   withRetry(() => getUnits()),

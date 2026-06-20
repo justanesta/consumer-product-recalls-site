@@ -1,15 +1,16 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import RecallDetail from '@/components/recalls/RecallDetail';
-import { getRecall, listRecalls, withRetry } from '@/lib/api';
+import { getRecall, listRecalls, withConcurrency, withRetry } from '@/lib/api';
 import type { RecallDetail as RecallDetailType } from '@/lib/api/recalls';
 
 // Pre-render a bounded popular set (recent recalls) for SEO; the long tail is
 // served by the client-fetch viewer (/recall-view) via the _redirects fallback.
 export async function getStaticPaths() {
   const page = await withRetry(() => listRecalls({ limit: 8 }));
-  const details = await Promise.all(
-    page.items.map((r) => withRetry(() => getRecall(r.source, r.source_recall_id))),
+  const details = await withConcurrency(
+    page.items.map((r) => () => withRetry(() => getRecall(r.source, r.source_recall_id))),
+    4,
   );
   return details.map((detail) => ({
     params: { source: detail.source, recall_id: detail.source_recall_id },

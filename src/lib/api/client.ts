@@ -107,7 +107,7 @@ export interface RetryOptions {
   retries?: number;
   baseDelayMs?: number;
   maxDelayMs?: number;
-  onRetry?: (attempt: number, error: ApiError) => void;
+  onRetry?: (attempt: number, error: unknown) => void;
   /** Injectable for tests. */
   sleep?: (ms: number) => Promise<void>;
 }
@@ -115,8 +115,23 @@ export interface RetryOptions {
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * Retry a call on transient API failures (503 cold-start, 429 rate-limit) with
- * exponential backoff, honoring `Retry-After`. Non-retryable errors throw at once.
+ * A connection-level failure with no HTTP response (DNS, reset, timeout) — `fetch`
+ * throws a TypeError here, below the ApiError layer. Transient; worth retrying.
+ */
+function isTransientNetworkError(error: unknown): boolean {
+  if (error instanceof ApiError) return error.isRetryable;
+  if (error instanceof TypeError) return true; // fetch() network failure
+  const holder = error as { code?: unknown; cause?: { code?: unknown } };
+  const code = holder?.cause?.code ?? holder?.code;
+  return (
+    typeof code === 'string' &&
+    /ECONNRESET|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|UND_ERR/.test(code)
+  );
+}
+
+/**
+ * Retry a call on transient failures — 503 cold-start, 429 rate-limit, or a dropped
+ * connection — with exponential backoff, honoring `Retry-After`. Other errors throw at once.
  * Used for build-time pulls — it retries hard, then fails loudly (never ships blanks).
  */
 export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
@@ -133,14 +148,34 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions =
       return await fn();
     } catch (error) {
       lastError = error;
-      if (!(error instanceof ApiError) || !error.isRetryable || attempt === retries) {
+      if (attempt === retries || !isTransientNetworkError(error)) {
         throw error;
       }
+      const retryAfterMs =
+        error instanceof ApiError && error.retryAfter ? error.retryAfter * 1000 : null;
       const backoff = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
-      const delayMs = error.retryAfter ? error.retryAfter * 1000 : backoff;
       onRetry?.(attempt + 1, error);
-      await sleep(delayMs);
+      await sleep(retryAfterMs ?? backoff);
     }
   }
   throw lastError;
+}
+
+/**
+ * Run thunks with at most `limit` in flight at once. Avoids a burst of
+ * simultaneous TCP connects (which can time out against a cold free-tier host)
+ * during build-time pulls, while preserving result order.
+ */
+export async function withConcurrency<R>(thunks: Array<() => Promise<R>>, limit = 4): Promise<R[]> {
+  const results = new Array<R>(thunks.length);
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < thunks.length) {
+      const index = next;
+      next += 1;
+      results[index] = await thunks[index]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, thunks.length) }, () => worker()));
+  return results;
 }

@@ -91,4 +91,15 @@ describe('withRetry', () => {
     );
     expect(fn).toHaveBeenCalledTimes(3);
   });
+
+  it('retries a connection-level network error (fetch with no response)', async () => {
+    const sleep = vi.fn(async () => {});
+    let calls = 0;
+    const fn = vi.fn(async () => {
+      if (calls++ < 1) throw new TypeError('fetch failed');
+      return 'ok';
+    });
+    await expect(withRetry(fn, { sleep })).resolves.toBe('ok');
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
 });

@@ -2,13 +2,16 @@
 import Layout from '@/layouts/Layout.astro';
 import FirmProfile from '@/components/firms/FirmProfile';
 import FirmRecalls from '@/components/firms/FirmRecalls';
-import { getFirm, getFirmLeaderboard, withRetry } from '@/lib/api';
+import { getFirm, getFirmLeaderboard, withConcurrency, withRetry } from '@/lib/api';
 import type { FirmProfile as FirmProfileType } from '@/lib/api/firms';
 
 // Pre-render the most-recalled firms; the long tail is served by /firm-view.
 export async function getStaticPaths() {
   const leaders = await withRetry(() => getFirmLeaderboard({ limit: 8 }));
-  const profiles = await Promise.all(leaders.map((l) => withRetry(() => getFirm(l.firm_id))));
+  const profiles = await withConcurrency(
+    leaders.map((l) => () => withRetry(() => getFirm(l.firm_id))),
+    4,
+  );
   return profiles.map((profile) => ({ params: { firm_id: profile.firm_id }, props: { profile } }));
 }
 
