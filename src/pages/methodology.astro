@@ -99,6 +99,17 @@ const sources = [
       left uncolored — pending confirmation from the Coast Guard. Don't read them as a settled scale.
     </p>
 
+    <h3 class="mt-6 text-lg font-semibold">Trends are dated by announcement</h3>
+    <p class="mt-1 text-muted">
+      Every time-series here (recalls by month/week/year and the per-source trend) buckets each
+      recall by its <strong>announcement / initiation date</strong> —
+      <code>coalesce(announced_at, published_at)</code> — so the curve reflects when recalls actually
+      happened, not when a record was last published. For the handful of FDA events with no trustworthy
+      announce date, we fall back to the publish date. (The browse and RSS lists are separately ordered
+      by
+      <em>publish</em> date — the right "what's new" signal — so the two bases aren't the same.)
+    </p>
+
     <h3 class="mt-6 text-lg font-semibold">Status is tri-state</h3>
     <p class="mt-1 text-muted">
       Only FDA, USDA, and USCG track an active/inactive lifecycle. CPSC and NHTSA carry none, so

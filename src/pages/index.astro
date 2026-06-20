@@ -45,12 +45,14 @@ const classificationGroups = classificationTableGroups(byClass);
 
   <section class="mt-12">
     <h2 class="text-2xl font-bold">Recalls over time</h2>
-    <p class="mt-1 text-sm text-muted">All sources combined, by month (since 2012).</p>
+    <p class="mt-1 text-sm text-muted">
+      All sources combined, by the month each recall was announced (since 2012).
+    </p>
     <AreaTrendChart
       client:visible
       data={trend}
       title="Recalls per month across all sources since 2012"
-      caption="Monthly count of recall events across all five sources. The latest month is partial."
+      caption="Monthly count of recall events, by each recall's announcement date, across all five sources. The latest month is partial."
     />
   </section>
 

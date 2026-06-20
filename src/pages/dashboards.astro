@@ -63,21 +63,24 @@ const firmGeo = geographyData(geoFirm, 'ALL');
 
   <section class="mt-10">
     <h2 class="text-2xl font-bold">Recalls over time</h2>
-    <p class="mt-1 text-sm text-muted">All sources combined — switch the time grain.</p>
+    <p class="mt-1 text-sm text-muted">
+      All sources combined, by announcement date — switch the time grain.
+    </p>
     <PeriodToggleChart
       client:visible
       week={week}
       month={month}
       year={year}
       title="Recalls by period (all sources)"
-      caption="The most recent bucket is partial."
+      caption="Counted by each recall's announcement (initiation) date. The most recent bucket is partial."
     />
   </section>
 
   <section class="mt-12">
     <h2 class="text-2xl font-bold">Trend by source</h2>
     <p class="mt-1 text-sm text-muted">
-      Monthly count (faint) with a 3-month rolling average (bold), per source, since 2010.
+      Monthly count by announcement date (faint) with a 3-month rolling average (bold), per source,
+      since 2010.
     </p>
     <MonthlyTrendChart
       client:visible
