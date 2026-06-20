@@ -1,9 +1,10 @@
 ---
 import Layout from '@/layouts/Layout.astro';
+import LongTailViewer from '@/components/LongTailViewer';
 ---
 
 <Layout title="Page not found" noindex={true}>
-  <div class="max-w-prose">
+  <div id="nf-static" class="max-w-prose">
     <h1 class="text-3xl font-bold sm:text-4xl">Page not found</h1>
     <p class="mt-3 text-muted">We couldn't find that page. Try one of these:</p>
     <ul class="mt-3 list-inside list-disc space-y-1 text-muted">
@@ -13,4 +14,22 @@ import Layout from '@/layouts/Layout.astro';
       <li><a href="/dashboards">Dashboards</a></li>
     </ul>
   </div>
+
+  {
+    /* If this 404 is really a long-tail recall/firm URL (hosts that don't run
+      Cloudflare `_redirects`, incl. `astro preview`), hide the static message
+      before paint and let the viewer island below render the entity instead. */
+  }
+  <script is:inline>
+    (() => {
+      const p = location.pathname;
+      const isEntity = /^\/recalls\/[^/]+\/.+/.test(p) || /^\/firms\/[0-9a-f]{32}\/?$/.test(p);
+      if (isEntity) {
+        const el = document.getElementById('nf-static');
+        if (el) el.style.display = 'none';
+      }
+    })();
+  </script>
+
+  <LongTailViewer client:only="react" />
 </Layout>

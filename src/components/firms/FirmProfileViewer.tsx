@@ -24,7 +24,14 @@ export default function FirmProfileViewer() {
 
     let alive = true;
     withRetry(() => getFirm(firmId))
-      .then((data) => alive && setState({ status: 'ok', data }))
+      .then((data) => {
+        if (!alive) return;
+        setState({ status: 'ok', data });
+        const suffix = document.title.includes(' · ')
+          ? document.title.slice(document.title.indexOf(' · '))
+          : '';
+        document.title = data.canonical_name + suffix;
+      })
       .catch((error) => {
         if (!alive) return;
         if (error instanceof ApiError && error.isNotFound) setState({ status: 'notfound' });
