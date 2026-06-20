@@ -27,3 +27,6 @@ playwright-report/
 # OS / editor
 .DS_Store
 *.log
+
+# Website screenshots
+screenshots/

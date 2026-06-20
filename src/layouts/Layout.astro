@@ -8,10 +8,10 @@ interface Props {
   noindex?: boolean;
 }
 
-const SITE_NAME = 'Recall Lookup';
+const SITE_NAME = 'Consumer Product Recalls';
 const {
   title = SITE_NAME,
-  description = 'Search and explore U.S. consumer product recalls across CPSC, FDA, USDA, NHTSA, and USCG — one unified, honest view.',
+  description = 'Search and explore U.S. consumer product recalls issued by the CPSC, FDA, USDA, NHTSA, and USCG. One unified, continually updating resource.',
   ogImage,
   noindex = false,
 } = Astro.props;
@@ -81,7 +81,7 @@ const nav = [
     >
     <header class="border-b border-line">
       <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <a href="/" class="font-serif text-lg font-bold no-underline">Recall&nbsp;Lookup</a>
+        <a href="/" class="font-serif text-lg font-bold no-underline">{SITE_NAME}</a>
         <nav aria-label="Primary" class="hidden gap-5 text-sm sm:flex">
           {
             nav.map((item) => (
