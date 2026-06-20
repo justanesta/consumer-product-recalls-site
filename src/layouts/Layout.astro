@@ -1,5 +1,7 @@
 ---
 import '@/styles/global.css';
+import { getSiteMeta } from '@/lib/api/site-meta';
+import { formatDateTime } from '@/lib/format';
 
 interface Props {
   title?: string;
@@ -18,6 +20,9 @@ const {
 
 const fullTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : Astro.url.pathname;
+
+// Single build-time freshness stamp, shown in the footer on every page.
+const { lastRebuiltAt } = await getSiteMeta();
 
 const nav = [
   { href: '/recalls', label: 'Recalls' },
@@ -110,7 +115,16 @@ const nav = [
       <div
         class="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between"
       >
-        <p>Data from CPSC, FDA, USDA, NHTSA, and USCG. Not affiliated with any agency.</p>
+        <div class="space-y-1">
+          <p>Data from CPSC, FDA, USDA, NHTSA, and USCG. Not affiliated with any agency.</p>
+          {
+            lastRebuiltAt && (
+              <p class="text-xs">
+                Data updated <time datetime={lastRebuiltAt}>{formatDateTime(lastRebuiltAt)}</time>
+              </p>
+            )
+          }
+        </div>
         <nav aria-label="Footer" class="flex flex-wrap gap-4">
           <a href="/methodology" class="no-underline hover:underline">Methodology</a>
           <a href="/about" class="no-underline hover:underline">About</a>

@@ -25,17 +25,21 @@ export interface SourceTotal {
   count: number;
 }
 
-/** Per-source totals summed from the classification breakdown (excludes the ALL rollup). */
+/**
+ * Per-source totals summed from the classification breakdown (excludes the ALL
+ * rollup), sorted by count descending so the highest-volume source leads.
+ * Ties fall back to canonical source order for stable output.
+ */
 export function perSourceTotals(rows: ClassificationCount[]): SourceTotal[] {
   const totals = new Map<string, number>();
   for (const r of rows) {
     if (r.source === 'ALL') continue;
     totals.set(r.source, (totals.get(r.source) ?? 0) + r.event_count);
   }
-  return SOURCE_ORDER.filter((s) => totals.has(s)).map((s) => ({
-    source: s,
-    count: totals.get(s) ?? 0,
-  }));
+  const order = SOURCE_ORDER as readonly string[];
+  return SOURCE_ORDER.filter((s) => totals.has(s))
+    .map((s) => ({ source: s, count: totals.get(s) ?? 0 }))
+    .sort((a, b) => b.count - a.count || order.indexOf(a.source) - order.indexOf(b.source));
 }
 
 export interface ClassificationDatum {

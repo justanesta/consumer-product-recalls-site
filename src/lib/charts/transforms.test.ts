@@ -25,10 +25,10 @@ describe('monthlyTrend', () => {
 });
 
 describe('perSourceTotals', () => {
-  it('sums per source, excludes ALL, keeps canonical order', () => {
+  it('sums per source, excludes ALL, and sorts by count descending', () => {
     expect(perSourceTotals(classes)).toEqual([
-      { source: 'CPSC', count: 30 },
       { source: 'FDA', count: 70 },
+      { source: 'CPSC', count: 30 },
     ]);
   });
 });

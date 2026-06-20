@@ -1,17 +1,14 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import KpiStat from '@/components/KpiStat.astro';
 import Callout from '@/components/Callout.astro';
 import AreaTrendChart from '@/components/charts/AreaTrendChart';
 import SourceTotalsChart from '@/components/charts/SourceTotalsChart';
 import ClassificationFacetChart from '@/components/charts/ClassificationFacetChart';
-import { getByClassification, getRecallsByPeriod, getStatsOverview, withRetry } from '@/lib/api';
+import { getByClassification, getRecallsByPeriod, withRetry } from '@/lib/api';
 import { classificationBySource, monthlyTrend, perSourceTotals } from '@/lib/charts/transforms';
-import { formatDate, formatNumber } from '@/lib/format';
 
 // Build-time pull of the slow-moving aggregates (retried hard; fails the build loudly).
-const [overview, byPeriod, byClass] = await Promise.all([
-  withRetry(() => getStatsOverview()),
+const [byPeriod, byClass] = await Promise.all([
   withRetry(() => getRecallsByPeriod({ grain: 'month' })),
   withRetry(() => getByClassification()),
 ]);
@@ -44,20 +41,6 @@ const classification = classificationBySource(byClass);
         >Browse all recalls</a
       >
     </div>
-  </section>
-
-  <section class="mt-10">
-    <h2 class="sr-only">Headline figures</h2>
-    <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <KpiStat label="Total recalls" value={formatNumber(overview.total_recalls)} />
-      <KpiStat label="Distinct firms" value={formatNumber(overview.distinct_firms)} />
-      <KpiStat
-        label="Sources"
-        value={overview.sources.length}
-        hint={overview.sources.join(' · ')}
-      />
-      <KpiStat label="Data updated" value={formatDate(overview.last_rebuilt_at)} hint="UTC" />
-    </dl>
   </section>
 
   <section class="mt-12">
