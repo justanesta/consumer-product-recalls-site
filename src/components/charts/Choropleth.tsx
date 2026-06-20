@@ -5,7 +5,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Chart from '@/components/Chart';
 import type { GeoDatum } from '@/lib/charts/dashboard';
 import { FIPS_BY_POSTAL } from '@/lib/geo/fips';
-import { formatNumber } from '@/lib/format';
+import { formatCompact, formatNumber } from '@/lib/format';
+
+/**
+ * Fixed class breaks for the per-state recall counts. Both lenses span ~0–11.5k,
+ * so shared round breaks keep the legend readable and the two maps on one count
+ * scale. A threshold scale renders equal-width legend swatches, so the labels
+ * can't bunch/overlap the way a value-proportional quantile ramp does on a
+ * low-skewed distribution (the firm-registration lens).
+ */
+const DEFAULT_BREAKS = [250, 1000, 2500, 5000, 8000];
 
 export interface ChoroplethProps {
   data: GeoDatum[];
@@ -13,9 +22,17 @@ export interface ChoroplethProps {
   caption?: string;
   /** Observable Plot sequential color scheme. */
   scheme?: string;
+  /** Ascending class-break thresholds for the choropleth bins. */
+  breaks?: number[];
 }
 
-export default function Choropleth({ data, title, caption, scheme = 'blues' }: ChoroplethProps) {
+export default function Choropleth({
+  data,
+  title,
+  caption,
+  scheme = 'blues',
+  breaks = DEFAULT_BREAKS,
+}: ChoroplethProps) {
   const [states, setStates] = useState<Feature[]>([]);
 
   // Load the vendored US states topology once, client-side (kept out of the JS bundle).
@@ -50,11 +67,12 @@ export default function Choropleth({ data, title, caption, scheme = 'blues' }: C
       projection: 'albers-usa',
       style: { background: 'transparent' },
       color: {
-        type: 'quantile',
-        n: 6,
+        type: 'threshold',
+        domain: breaks,
         scheme: scheme as Plot.ColorScheme,
         legend: true,
         label: 'recalls',
+        tickFormat: (v: number) => formatCompact(v),
         unknown: '#e5e7eb',
       },
       marks: [
@@ -69,7 +87,7 @@ export default function Choropleth({ data, title, caption, scheme = 'blues' }: C
         }),
       ],
     }),
-    [states, countByFips, scheme],
+    [states, countByFips, scheme, breaks],
   );
 
   const table = {

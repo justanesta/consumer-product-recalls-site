@@ -2,25 +2,21 @@
 import Layout from '@/layouts/Layout.astro';
 import Callout from '@/components/Callout.astro';
 import FirmLeaderboard from '@/components/FirmLeaderboard.astro';
-import ClassificationFacetChart from '@/components/charts/ClassificationFacetChart';
 import Choropleth from '@/components/charts/Choropleth';
 import MonthlyTrendChart from '@/components/charts/MonthlyTrendChart';
 import PeriodToggleChart from '@/components/charts/PeriodToggleChart';
 import StatusStackedChart from '@/components/charts/StatusStackedChart';
-import UnitsChart from '@/components/charts/UnitsChart';
 import {
-  getByClassification,
   getByGeography,
   getFirmLeaderboard,
   getMonthlyTrend,
   getRecallsByPeriod,
   getStatusBreakdown,
-  getUnits,
   pingDb,
   withRetry,
 } from '@/lib/api';
-import { classificationBySource, monthlyTrend } from '@/lib/charts/transforms';
-import { geographyData, sourceTrend, statusBySource, unitsData } from '@/lib/charts/dashboard';
+import { monthlyTrend } from '@/lib/charts/transforms';
+import { geographyData, sourceTrend, statusBySource } from '@/lib/charts/dashboard';
 
 // Pre-warm the API (wakes the Fly machine + Neon) before the build-time burst.
 await pingDb();
@@ -34,26 +30,22 @@ const [trendRows, weekRows, monthRows, yearRows] = await Promise.all([
   withRetry(() => getRecallsByPeriod({ grain: 'month', source: 'ALL' })),
   withRetry(() => getRecallsByPeriod({ grain: 'year', source: 'ALL' })),
 ]);
-const [classRows, statusRows, leaders] = await Promise.all([
-  withRetry(() => getByClassification()),
+const [statusRows, leaders] = await Promise.all([
   withRetry(() => getStatusBreakdown()),
   withRetry(() => getFirmLeaderboard({ limit: 15 })),
 ]);
-const [geoDist, geoFirm, unitsRows] = await Promise.all([
+const [geoDist, geoFirm] = await Promise.all([
   withRetry(() => getByGeography({ basis: 'distribution', source: 'ALL' })),
   withRetry(() => getByGeography({ basis: 'firm_registration', source: 'ALL' })),
-  withRetry(() => getUnits()),
 ]);
 
 const trend = sourceTrend(trendRows, { sinceYear: 2010 });
 const week = monthlyTrend(weekRows, { source: 'ALL', sinceYear: 2021 });
 const month = monthlyTrend(monthRows, { source: 'ALL', sinceYear: 2012 });
 const year = monthlyTrend(yearRows, { source: 'ALL' });
-const classification = classificationBySource(classRows);
 const status = statusBySource(statusRows);
 const distGeo = geographyData(geoDist, 'ALL');
 const firmGeo = geographyData(geoFirm, 'ALL');
-const units = unitsData(unitsRows, { sinceYear: 2015 });
 ---
 
 <Layout
@@ -91,17 +83,6 @@ const units = unitsData(unitsRows, { sinceYear: 2015 });
       client:visible
       data={trend}
       title="Monthly recalls and 3-month rolling average by source"
-    />
-  </section>
-
-  <section class="mt-12">
-    <h2 class="text-2xl font-bold">By classification</h2>
-    <p class="mt-1 text-sm text-muted">Each agency's own severity vocabulary, faceted by source.</p>
-    <ClassificationFacetChart
-      client:visible
-      data={classification}
-      title="Recalls by source-native classification, faceted by source"
-      caption="Classifications are source-native and NOT comparable across agencies."
     />
   </section>
 
@@ -171,18 +152,5 @@ const units = unitsData(unitsRows, { sinceYear: 2015 });
         />
       </div>
     </div>
-  </section>
-
-  <section class="mt-12">
-    <h2 class="text-2xl font-bold">Units recalled</h2>
-    <p class="mt-1 text-sm text-muted">
-      Reported magnitude per source and unit category, by month (since 2015).
-    </p>
-    <UnitsChart
-      client:visible
-      data={units}
-      title="Units recalled by source and unit category"
-      caption="A recall-magnitude measure (not unique items), on a log scale. Units are NOT comparable across sources or categories — never sum them."
-    />
   </section>
 </Layout>
