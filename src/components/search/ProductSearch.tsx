@@ -183,14 +183,12 @@ function Search() {
       </form>
 
       <p className="mt-3 text-xs text-muted">
-        Keyword search is exact (not fuzzy) across our five sources. UPC lookup is recall-level and
-        sparse (mostly CPSC); for vehicles and boats use the model/HIN fields.
+        Keyword search is exact (not fuzzy) across data from all five sources. UPC lookup is
+        recall-level. For vehicles and boats use the model/HIN fields.
       </p>
 
       <div className="mt-6" aria-live="polite">
-        {submitted === null ? (
-          <p className="text-sm text-muted">Enter a product name or identifier to search.</p>
-        ) : query.isPending ? (
+        {submitted === null ? null : query.isPending ? (
           <p className="text-sm text-muted">Searching…</p>
         ) : apiError ? (
           <div className="rounded-lg border border-amber-500/40 bg-amber-50 p-4 text-sm dark:bg-amber-950/20">

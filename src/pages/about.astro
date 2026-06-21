@@ -2,61 +2,25 @@
 import Layout from '@/layouts/Layout.astro';
 ---
 
-<Layout
-  title="About"
-  description="About the Consumer Product Recalls project: a Python data pipeline, a FastAPI service, and this static Astro site."
->
+<Layout title="About" description="About Consumer Product Recalls and its maker, Adrian Nesta.">
   <div class="max-w-prose">
-    <h1 class="text-3xl font-bold sm:text-4xl">About this project</h1>
-    <p class="mt-3 text-muted">
-      Consumer product recalls are scattered across five federal agencies, each with its own site,
-      format, and quirks. This project unifies them into one searchable, honest, and fast view — and
-      doubles as an end-to-end data-engineering portfolio.
+    <h1 class="text-3xl font-bold sm:text-4xl">About</h1>
+    <p class="mt-4 text-muted">
+      Hi, I'm Adrian Nesta, a data engineer and journalist. I have a passion for making publicly
+      available data more accessible and useful, and this site is one of those efforts. It pulls
+      together U.S. consumer product recalls from five federal agencies into one place you can
+      actually search and browse.
     </p>
-
-    <h2 class="mt-8 text-2xl font-bold">How the data flows</h2>
-    <ol class="mt-3 space-y-3 text-muted">
-      <li>
-        <strong class="text-ink">Pipeline.</strong> A Python + dbt pipeline ingests CPSC, FDA, USDA, NHTSA,
-        and USCG feeds nightly, conforming them through bronze → silver → gold layers in Postgres, with
-        firm resolution and a careful, source-native data contract.
-      </li>
-      <li>
-        <strong class="text-ink">API.</strong> A read-only FastAPI service serves the gold tables — entity
-        and search endpoints plus pre-aggregated <code>/stats/*</code> for dashboards — with keyset pagination,
-        open CORS, and honest, documented caveats.
-      </li>
-      <li>
-        <strong class="text-ink">This site.</strong> A static Astro site on Cloudflare Pages. Slow-moving
-        aggregates are baked at build time; per-recall browsing and search are fetched live. It never
-        touches the database — only the API.
-      </li>
-    </ol>
-
-    <h2 class="mt-8 text-2xl font-bold">Built with</h2>
-    <ul class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted sm:grid-cols-3">
-      <li>Astro (static)</li>
-      <li>React islands</li>
-      <li>TanStack Query</li>
-      <li>Observable Plot + D3</li>
-      <li>Tailwind CSS</li>
-      <li>TypeScript (strict)</li>
-      <li>OpenAPI-generated client</li>
-      <li>Cloudflare Pages</li>
-      <li>FastAPI · Postgres · dbt</li>
-    </ul>
-
-    <h2 class="mt-8 text-2xl font-bold">Honesty first</h2>
-    <p class="mt-1 text-muted">
-      The hardest part of unifying five sources is <em>not</em> over-claiming. Classifications, geography,
-      lifecycle, and units are kept source-native and clearly captioned. See the
-      <a href="/methodology">methodology &amp; caveats</a> and the
-      <a href="/api">API reference</a>.
+    <p class="mt-4 text-muted">
+      You can find more about me and my other work at
+      <a href="https://justanesta.com/" target="_blank" rel="noopener noreferrer">justanesta.com</a
+      >. If the site is useful to you and you'd like to support it, you can
+      <a href="https://www.buymeacoffee.com/justanesta" target="_blank" rel="noopener noreferrer"
+        >buy me a coffee</a
+      >.
     </p>
-
-    <p class="mt-6 text-sm text-muted">
-      Not affiliated with any government agency. Always confirm a recall on the issuing agency's
-      official site before acting.
+    <p class="mt-4 text-muted">
+      Feedback and ideas for improving the site or the data behind it are always welcome.
     </p>
   </div>
 </Layout>

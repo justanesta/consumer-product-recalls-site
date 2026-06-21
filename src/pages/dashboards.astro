@@ -54,34 +54,25 @@ const firmGeo = geographyData(geoFirm, 'ALL');
 >
   <section class="max-w-prose">
     <h1 class="text-3xl font-bold sm:text-4xl">Dashboards</h1>
-    <p class="mt-3 text-muted">
-      Trends across all five sources, refreshed daily from the data pipeline. Every panel reads a
-      single pre-aggregated table — and every chart carries the caveats that keep the numbers
-      honest.
-    </p>
+    <p class="mt-3 text-muted">High-level trends and views from all five data sources.</p>
   </section>
 
   <section class="mt-10">
-    <h2 class="text-2xl font-bold">Recalls over time</h2>
-    <p class="mt-1 text-sm text-muted">
-      All sources combined, by announcement date — switch the time grain.
-    </p>
+    <h2 class="text-2xl font-bold">Over time</h2>
+    <p class="mt-1 text-sm text-muted">By recall announcement date.</p>
     <PeriodToggleChart
       client:visible
       week={week}
       month={month}
       year={year}
       title="Recalls by period (all sources)"
-      caption="Counted by each recall's announcement (initiation) date. The most recent bucket is partial."
+      caption="Most recent bucket is typically partial."
     />
   </section>
 
   <section class="mt-12">
-    <h2 class="text-2xl font-bold">Trend by source</h2>
-    <p class="mt-1 text-sm text-muted">
-      Monthly count by announcement date (faint) with a 3-month rolling average (bold), per source,
-      since 2010.
-    </p>
+    <h2 class="text-2xl font-bold">By source</h2>
+    <p class="mt-1 text-sm text-muted">Monthly recall count by announcement date.</p>
     <MonthlyTrendChart
       client:visible
       data={trend}
@@ -92,7 +83,7 @@ const firmGeo = geographyData(geoFirm, 'ALL');
   <section class="mt-12">
     <h2 class="text-2xl font-bold">Active vs. inactive</h2>
     <p class="mt-1 text-sm text-muted">
-      Lifecycle status by source — CPSC and NHTSA carry no lifecycle, so they're "No lifecycle".
+      Lifecycle status by source. CPSC and NHTSA carry no lifecycle, so they show "No lifecycle".
     </p>
     <StatusStackedChart
       client:visible
@@ -114,25 +105,19 @@ const firmGeo = geographyData(geoFirm, 'ALL');
 
   <section class="mt-12">
     <h2 class="text-2xl font-bold">Geography</h2>
-    <Callout
-      title="Two different questions — read each map on its own terms"
-      tone="warn"
-      class="mt-3"
-    >
+    <Callout title="Two different geographic scopes for recalls" tone="warn" class="mt-3">
       <p>
-        Recall geography has <strong>two distinct lenses</strong> that are <em>not</em> interchangeable.
-        <strong>Distribution</strong> is where a product was sent (FDA/USDA only). <strong
-          >Firm registration</strong
-        >
-        is where the responsible firm is registered — <em>not</em> where the product went or where harm
-        occurred. We show them as two separate maps, never one toggle.
+        Recall geography has two distinct lenses that are not interchangeable.
+        <strong>Distribution</strong> is where a product was sent (currently only available in FDA/USDA
+        data). <strong>Firm registration</strong> is where the responsible firm is registered, not where
+        the product was delivered or where harm occurred.
       </p>
     </Callout>
 
     <div class="mt-6 grid gap-8 lg:grid-cols-2">
       <div>
         <h3 class="text-lg font-semibold">Distribution lens</h3>
-        <p class="mt-1 text-sm text-muted">Where recalled products were distributed (FDA/USDA).</p>
+        <p class="mt-1 text-sm text-muted">Where recalled products were distributed.</p>
         <Choropleth
           client:visible
           data={distGeo}
@@ -143,15 +128,13 @@ const firmGeo = geographyData(geoFirm, 'ALL');
       </div>
       <div>
         <h3 class="text-lg font-semibold">Firm-registration lens</h3>
-        <p class="mt-1 text-sm text-muted">
-          Where the responsible firm is registered (not where harm occurred).
-        </p>
+        <p class="mt-1 text-sm text-muted">Where the responsible firm is registered.</p>
         <Choropleth
           client:visible
           data={firmGeo}
           scheme="purples"
           title="Recalls by firm-registration state"
-          caption="Registration location ≠ where the product was sold or caused harm."
+          caption="A single recall can interact with multiple firms in different roles (importer, distributor, manufacturer, etc.)."
         />
       </div>
     </div>

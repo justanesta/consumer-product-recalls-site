@@ -23,11 +23,11 @@ const classificationGroups = classificationTableGroups(byClass);
   description="Search and explore U.S. consumer product recalls across CPSC, FDA, USDA, NHTSA, and USCG — one unified, honest view."
 >
   <section class="max-w-prose">
-    <h1 class="text-4xl font-bold sm:text-5xl">Consumer product recalls, in one place</h1>
+    <h1 class="text-4xl font-bold sm:text-5xl">Your online resource for recalls</h1>
     <p class="mt-4 text-lg text-muted">
-      A unified, searchable view of U.S. consumer product recalls across five federal agency
-      sources. Browse and filter every recall, check whether a product was recalled, and explore the
-      trends — drawn live from a public data pipeline.
+      A unified, open access database of U.S. consumer product recalls from five federal agencies.
+      Browse and filter every recall to check details like the firms involved, areas impacted, and
+      products included. Data updates every day from publicly available sources.
     </p>
     <div class="mt-6 flex flex-wrap gap-3">
       <a
@@ -44,10 +44,8 @@ const classificationGroups = classificationTableGroups(byClass);
   </section>
 
   <section class="mt-12">
-    <h2 class="text-2xl font-bold">Recalls over time</h2>
-    <p class="mt-1 text-sm text-muted">
-      All sources combined, by the month each recall was announced (since 2012).
-    </p>
+    <h2 class="text-2xl font-bold">Over time</h2>
+    <p class="mt-1 text-sm text-muted">From every source, by the month a recall was announced.</p>
     <AreaTrendChart
       client:visible
       data={trend}
@@ -58,7 +56,7 @@ const classificationGroups = classificationTableGroups(byClass);
 
   <section class="mt-12">
     <h2 class="text-2xl font-bold">By source</h2>
-    <p class="mt-1 text-sm text-muted">Total recalls contributed by each agency feed.</p>
+    <p class="mt-1 text-sm text-muted">Total recalls from each regulating agency.</p>
     <SourceTotalsChart
       client:visible
       data={sourceTotals}
@@ -69,20 +67,19 @@ const classificationGroups = classificationTableGroups(byClass);
 
   <section class="mt-12">
     <h2 class="text-2xl font-bold">By classification</h2>
-    <p class="mt-1 text-sm text-muted">Each agency's own severity vocabulary — shown separately.</p>
+    <p class="mt-1 text-sm text-muted">Separated by each agency's own recall severity level.</p>
     <div class="mt-4 max-w-2xl">
       <ClassificationTable groups={classificationGroups} />
     </div>
   </section>
 
   <section class="mt-12 max-w-prose">
-    <Callout title="What this data is — and isn't">
+    <Callout title="A note about this data">
       <p>
-        These five feeds use different vocabularies, scopes, and lifecycles. We keep them
-        source-native rather than forcing a false common scale: classifications aren't comparable
-        across agencies, recall geography has
-        <a href="/methodology">two distinct lenses</a>, and counts reflect reporting practices, not
-        product risk. Read the <a href="/methodology">methodology &amp; caveats</a> before drawing conclusions.
+        These five regulators differ a little in their terminology, scope, and recall lifecycles.
+        For most fields the data is kept source-native, and only combined where it clearly lines up.
+        Counts reflect reporting practices, not product risk. Read the
+        <a href="/methodology">methodology</a> before drawing conclusions.
       </p>
     </Callout>
   </section>
