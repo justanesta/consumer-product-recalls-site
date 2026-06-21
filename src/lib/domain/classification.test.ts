@@ -27,8 +27,13 @@ describe('classificationTone', () => {
 });
 
 describe('classificationHint', () => {
-  it('expands FDA codes', () => {
-    expect(classificationHint('FDA', '1')).toContain('most serious');
+  it('expands FDA codes with the verbatim FDA definition', () => {
+    expect(classificationHint('FDA', '1')).toContain('Class I recall:');
+    expect(classificationHint('FDA', '3')).toContain('not likely to cause adverse health');
+  });
+
+  it('expands USDA classes with the verbatim FSIS definition', () => {
+    expect(classificationHint('USDA', 'Class I')).toContain('A Class I recall involves');
   });
 
   it('is undefined for empty', () => {
