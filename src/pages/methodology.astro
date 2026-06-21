@@ -55,7 +55,35 @@ const sources = [
     </p>
 
     <h2 class="mt-8 text-2xl font-bold">The five sources</h2>
-    <div class="mt-3 overflow-x-auto">
+
+    <ul class="mt-3 space-y-3 md:hidden">
+      {
+        sources.map((s) => (
+          <li class="rounded-lg border border-line p-3">
+            <div class="font-medium">
+              {s.code}
+              <span class="text-xs font-normal text-muted"> · {s.name}</span>
+            </div>
+            <dl class="mt-2 space-y-1 text-sm">
+              <div class="flex gap-2">
+                <dt class="w-24 shrink-0 text-muted">Covers</dt>
+                <dd>{s.covers}</dd>
+              </div>
+              <div class="flex gap-2">
+                <dt class="w-24 shrink-0 text-muted">Class.</dt>
+                <dd class="font-mono text-xs">{s.classification}</dd>
+              </div>
+              <div class="flex gap-2">
+                <dt class="w-24 shrink-0 text-muted">Lifecycle</dt>
+                <dd class="text-xs">{s.lifecycle}</dd>
+              </div>
+            </dl>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="mt-3 hidden overflow-x-auto md:block">
       <table class="w-full min-w-[40rem] border-collapse text-left text-sm">
         <thead class="border-b border-line text-xs uppercase text-muted">
           <tr>

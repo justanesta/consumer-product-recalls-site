@@ -17,7 +17,7 @@ const hasUscg = groups.some((g) => g.source === 'USCG');
 
 <figure class="m-0">
   <div class="overflow-x-auto rounded-lg border border-line">
-    <table class="w-full min-w-[28rem] text-left text-sm">
+    <table class="w-full min-w-[19rem] text-left text-sm">
       <caption class="sr-only">
         Recall counts by source-native classification. Classifications are not comparable across
         sources.
@@ -47,7 +47,7 @@ const hasUscg = groups.some((g) => g.source === 'USCG');
                           †
                         </sup>
                       )}
-                      <span class="mt-1 block text-xs font-normal text-muted">
+                      <span class="mt-1 hidden text-xs font-normal text-muted sm:block">
                         {getSourceMeta(group.source)?.name ?? group.source}
                       </span>
                     </th>
