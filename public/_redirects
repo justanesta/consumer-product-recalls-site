@@ -1,5 +1,0 @@
-# Cloudflare Pages serves real static assets first, so pre-rendered detail/firm
-# pages win. Only the long tail (no built file) falls through to these
-# client-fetch viewer shells (200 = rewrite, keeps the original URL visible).
-/recalls/:source/:recall_id   /recall-view   200
-/firms/:firm_id               /firm-view     200
