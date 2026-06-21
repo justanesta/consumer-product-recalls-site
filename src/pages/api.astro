@@ -4,20 +4,15 @@ import ApiReference from '@/components/api/ApiReference';
 ---
 
 <Layout
-  title="API reference"
-  description="The public, read-only Consumer Product Recalls API — endpoints, pagination, and conventions."
+  title="API"
+  description="The open, read-only API behind this site. No key, GET only, 60 requests a minute per IP."
 >
   <section class="max-w-prose">
-    <h1 class="text-3xl font-bold sm:text-4xl">API reference</h1>
+    <h1 class="text-3xl font-bold sm:text-4xl">Consumer Product Recalls API</h1>
     <p class="mt-2 text-muted">
-      The site is powered by a public, read-only API. It's open (no key, <code>GET</code> only, open CORS),
-      keyset-paginated, and rate-limited to 60 requests/minute per IP. Base URL:
-      <code>https://consumer-product-recalls-api.fly.dev</code>.
-    </p>
-    <p class="mt-2 text-sm text-muted">
-      The reference below renders directly from the API's <code>openapi.json</code> — it's never hand-maintained.
-      For what the data means and its caveats, see the
-      <a href="/methodology">methodology</a>.
+      The whole site is built on a public, read-only API that you're welcome to use too. No key
+      required, GET requests only, open CORS, and keyset pagination, capped at 60 requests a minute
+      per IP. The base URL is <code>https://api.consumer-product-recalls.info</code>.
     </p>
   </section>
 

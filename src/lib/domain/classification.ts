@@ -31,7 +31,7 @@ export function classificationTone(source: string, classification?: string | nul
   }
 }
 
-/** A human tooltip expanding a terse code, where the meaning is well-documented (FDA). */
+/** A tooltip expanding a classification code, using each agency's own published definition. */
 export function classificationHint(
   source: string,
   classification?: string | null,
@@ -39,13 +39,26 @@ export function classificationHint(
   const c = classification?.trim();
   if (!c) return undefined;
   if (source === 'FDA') {
+    // Verbatim from FDA "Recalls: Background and Definitions" (fda.gov).
     const fda: Record<string, string> = {
-      '1': 'Class 1 — most serious (reasonable probability of serious harm or death)',
-      '2': 'Class 2 — temporary or medically reversible harm',
-      '3': 'Class 3 — unlikely to cause harm',
-      NC: 'Not yet classified',
+      '1': 'Class I recall: a situation in which there is a reasonable probability that the use of or exposure to a violative product will cause serious adverse health consequences or death.',
+      '2': 'Class II recall: a situation in which use of or exposure to a violative product may cause temporary or medically reversible adverse health consequences or where the probability of serious adverse health consequences is remote.',
+      '3': 'Class III recall: a situation in which use of or exposure to a violative product is not likely to cause adverse health consequences.',
+      NC: 'Not yet classified.',
     };
-    return fda[c] ? `FDA ${fda[c]}` : `FDA classification ${c}`;
+    return fda[c] ? fda[c] : `FDA classification ${c}`;
+  }
+  if (source === 'USDA') {
+    // Verbatim from USDA FSIS "Understanding FSIS Food Recalls" (fsis.usda.gov).
+    const usda: Record<string, string> = {
+      'Class I':
+        'Class I - A Class I recall involves a health hazard situation where there is a reasonable probability that use of the product will cause serious, adverse health consequences or death.',
+      'Class II':
+        'Class II - A Class II recall involves a health hazard situation where there is a remote probability of adverse health consequences from use of the product.',
+      'Class III':
+        'Class III - A Class III recall involves a situation where use of the product will not cause adverse health consequences, or the risk is negligible.',
+    };
+    return usda[c] ? usda[c] : `USDA classification: ${c}`;
   }
   return `${source} classification: ${c}`;
 }
