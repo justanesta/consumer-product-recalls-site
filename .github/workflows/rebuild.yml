@@ -4,8 +4,8 @@ name: Daily rebuild
 # (~03:00 UTC) rebuild. NOTE: GitHub's `schedule:` only fires on the default
 # branch, so this must be on main to run at all.
 on:
-  # schedule:
-  #   - cron: '30 5 * * *' # 05:30 UTC daily
+  schedule:
+    - cron: '30 5 * * *' # 05:30 UTC daily
   workflow_dispatch:
 
 jobs:
