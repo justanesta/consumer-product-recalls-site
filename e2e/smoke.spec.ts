@@ -1,16 +1,19 @@
 import { expect, test } from '@playwright/test';
 
-test('landing shows headline KPIs and nav', async ({ page }) => {
+test('landing shows the hero, a chart section, and nav', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /consumer product recalls/i })).toBeVisible();
-  await expect(page.getByText('Total recalls', { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Dashboards' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /your online resource for recalls/i }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'By source' })).toBeVisible();
+  // .first() because the mobile menu adds a second (hidden) nav.
+  await expect(page.getByRole('link', { name: 'Dashboards' }).first()).toBeVisible();
 });
 
-test('methodology page renders the honesty caveats', async ({ page }) => {
+test('methodology page renders the data details', async ({ page }) => {
   await page.goto('/methodology');
   await expect(page.getByRole('heading', { name: /methodology/i })).toBeVisible();
-  await expect(page.getByText('Honesty caveats')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Data details', exact: true })).toBeVisible();
 });
 
 test('recalls browser hydrates with filters and a result state', async ({ page }) => {
