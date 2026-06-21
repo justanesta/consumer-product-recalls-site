@@ -208,9 +208,10 @@ function Search() {
           <div className="rounded-lg border border-line bg-surface p-6 text-sm">
             <p className="font-medium text-ink">No matches found.</p>
             <p className="mt-1 text-muted">
-              A “no match” only covers our five sources (CPSC, FDA, USDA, NHTSA, USCG) — it does
-              <strong> not</strong> mean a product is safe. Try fewer or different keywords, and see
-              the <a href="/methodology">methodology</a>.
+              A “no match” here only covers these five sources (CPSC, FDA, USDA, NHTSA, USCG). It
+              does
+              <strong> not</strong> mean the product is safe. Try fewer or different keywords, and
+              have a look at the <a href="/methodology">methodology</a>.
             </p>
           </div>
         ) : (

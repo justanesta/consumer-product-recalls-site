@@ -218,7 +218,7 @@ function Browser() {
               {apiError.isColdStart
                 ? 'The API is waking up.'
                 : apiError.isRateLimited
-                  ? 'Too many requests — please slow down.'
+                  ? 'Too many requests. Please slow down a moment.'
                   : 'Could not load recalls.'}
             </p>
             <p className="mt-1 text-muted">
