@@ -140,17 +140,17 @@ function Browser() {
             distribution_scope: filters.distribution_scope.filter((x) => x !== sc),
           }),
       });
-    if (filters.published_after)
+    if (filters.announced_after)
       list.push({
         key: 'after',
-        label: `after ${filters.published_after}`,
-        remove: () => commit({ ...filters, published_after: '' }),
+        label: `announced after ${filters.announced_after}`,
+        remove: () => commit({ ...filters, announced_after: '' }),
       });
-    if (filters.published_before)
+    if (filters.announced_before)
       list.push({
         key: 'before',
-        label: `before ${filters.published_before}`,
-        remove: () => commit({ ...filters, published_before: '' }),
+        label: `announced before ${filters.announced_before}`,
+        remove: () => commit({ ...filters, announced_before: '' }),
       });
     if (filters.firm)
       list.push({

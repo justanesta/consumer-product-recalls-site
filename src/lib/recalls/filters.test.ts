@@ -15,8 +15,8 @@ const sample: RecallFilters = {
   classification: ['2'],
   status: 'active',
   distribution_scope: ['Nationwide'],
-  published_after: '2025-01-01',
-  published_before: '2025-12-31',
+  announced_after: '2025-01-01',
+  announced_before: '2025-12-31',
   firm: 'Acme',
 };
 
@@ -52,7 +52,7 @@ describe('filtersToQuery', () => {
       classification: ['2'],
       is_active: true,
       distribution_scope: ['Nationwide'],
-      published_after: '2025-01-01',
+      announced_after: '2025-01-01',
       firm: 'Acme',
     });
   });

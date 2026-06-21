@@ -53,7 +53,7 @@ export interface paths {
         };
         /**
          * List recalls, newest first, with filters and pagination.
-         * @description Recalls across all five agencies, newest first (by when each was most recently published or updated), with cursor pagination. Pass a page's `next_cursor` back as `cursor` for the next page. Filters combine with AND across fields; the categorical ones (`source`, `classification`, `lifecycle_status`, `distribution_scope`, `distribution_state`, `distribution_country`) accept multiple values: repeat the param or comma-separate them (`?source=CPSC,FDA`) to match any of them within that field. Each filter notes its own caveats below. The total count is omitted unless you pass `with_total=true`.
+         * @description Recalls across all five agencies, newest first (by `event_date` — when each recall was announced, falling back to its published date for the few with no announcement date), with cursor pagination. Pass a page's `next_cursor` back as `cursor` for the next page. Filters combine with AND across fields; the categorical ones (`source`, `classification`, `lifecycle_status`, `distribution_scope`, `distribution_state`, `distribution_country`) accept multiple values: repeat the param or comma-separate them (`?source=CPSC,FDA`) to match any of them within that field. Each filter notes its own caveats below. The total count is omitted unless you pass `with_total=true`.
          */
         get: operations["list_recalls_recalls_get"];
         put?: never;
@@ -903,15 +903,21 @@ export interface components {
             url?: string | null;
             /**
              * Announced At
-             * @description When the recall was first announced or initiated. Null for about 20 FDA recalls that have no reliable announcement date; use `published_at` when you need a date that is always present. Sources: all five.
+             * @description When the recall was first announced or initiated. Null for about 20 FDA recalls that have no reliable announcement date; use `event_date` (or `published_at`) when you need a date that is always present. Filterable via `announced_after`/`announced_before`. Sources: all five.
              */
             announced_at?: string | null;
             /**
              * Published At
              * Format: date-time
-             * @description When the recall was last published or updated. Always present, and the key used for sorting and pagination (unlike `announced_at`, which can be null). For NHTSA this is really a record-creation date, since NHTSA does not publish a last-modified date. Sources: all five.
+             * @description When the recall was last published or updated — always present. For NHTSA this is really a record-creation date, since NHTSA does not publish a last-modified date. Filterable via `published_after`/`published_before`. This was the default sort key until the feed moved to `event_date` (announce-recency); it is still returned and filterable. Sources: all five.
              */
             published_at: string;
+            /**
+             * Event Date
+             * Format: date-time
+             * @description The recall's effective date for the newest-first feed: its announcement date when known, falling back to `published_at` for the few recalls with no announcement date. Always present, and the key the list is sorted and paginated on. Equals `announced_at` whenever that is set. Sources: all five.
+             */
+            event_date: string;
             /**
              * Classification
              * @description Recall severity in each agency's own scale (FDA: 1/2/3, NC = Not Yet Classified; USDA: Class I/II/III, Public Health Alert; USCG: H/L/M/S). Not comparable across agencies. ⚠ USCG's H/L/M/S are passed through from the USCG directory, but their official meaning is not publicly documented (the public USCG recall index shows no severity, and 33 CFR 179 defines none), so do not assume an ordered scale. Best current guess, pending confirmation from USCG: H/M/L roughly map to High/Medium/Low, and S is unverified. Sources: FDA, USDA, USCG (null for CPSC/NHTSA).
@@ -1057,15 +1063,21 @@ export interface components {
             url?: string | null;
             /**
              * Announced At
-             * @description When the recall was first announced or initiated. Null for about 20 FDA recalls that have no reliable announcement date; use `published_at` when you need a date that is always present. Sources: all five.
+             * @description When the recall was first announced or initiated. Null for about 20 FDA recalls that have no reliable announcement date; use `event_date` (or `published_at`) when you need a date that is always present. Filterable via `announced_after`/`announced_before`. Sources: all five.
              */
             announced_at?: string | null;
             /**
              * Published At
              * Format: date-time
-             * @description When the recall was last published or updated. Always present, and the key used for sorting and pagination (unlike `announced_at`, which can be null). For NHTSA this is really a record-creation date, since NHTSA does not publish a last-modified date. Sources: all five.
+             * @description When the recall was last published or updated — always present. For NHTSA this is really a record-creation date, since NHTSA does not publish a last-modified date. Filterable via `published_after`/`published_before`. This was the default sort key until the feed moved to `event_date` (announce-recency); it is still returned and filterable. Sources: all five.
              */
             published_at: string;
+            /**
+             * Event Date
+             * Format: date-time
+             * @description The recall's effective date for the newest-first feed: its announcement date when known, falling back to `published_at` for the few recalls with no announcement date. Always present, and the key the list is sorted and paginated on. Equals `announced_at` whenever that is set. Sources: all five.
+             */
+            event_date: string;
             /**
              * Classification
              * @description Recall severity in each agency's own scale (FDA: 1/2/3, NC = Not Yet Classified; USDA: Class I/II/III, Public Health Alert; USCG: H/L/M/S). Not comparable across agencies. ⚠ USCG's H/L/M/S are passed through from the USCG directory, but their official meaning is not publicly documented (the public USCG recall index shows no severity, and 33 CFR 179 defines none), so do not assume an ordered scale. Best current guess, pending confirmation from USCG: H/M/L roughly map to High/Medium/Low, and S is unverified. Sources: FDA, USDA, USCG (null for CPSC/NHTSA).
@@ -1159,15 +1171,21 @@ export interface components {
             url?: string | null;
             /**
              * Announced At
-             * @description When the recall was first announced or initiated. Null for about 20 FDA recalls that have no reliable announcement date; use `published_at` when you need a date that is always present. Sources: all five.
+             * @description When the recall was first announced or initiated. Null for about 20 FDA recalls that have no reliable announcement date; use `event_date` (or `published_at`) when you need a date that is always present. Filterable via `announced_after`/`announced_before`. Sources: all five.
              */
             announced_at?: string | null;
             /**
              * Published At
              * Format: date-time
-             * @description When the recall was last published or updated. Always present, and the key used for sorting and pagination (unlike `announced_at`, which can be null). For NHTSA this is really a record-creation date, since NHTSA does not publish a last-modified date. Sources: all five.
+             * @description When the recall was last published or updated — always present. For NHTSA this is really a record-creation date, since NHTSA does not publish a last-modified date. Filterable via `published_after`/`published_before`. This was the default sort key until the feed moved to `event_date` (announce-recency); it is still returned and filterable. Sources: all five.
              */
             published_at: string;
+            /**
+             * Event Date
+             * Format: date-time
+             * @description The recall's effective date for the newest-first feed: its announcement date when known, falling back to `published_at` for the few recalls with no announcement date. Always present, and the key the list is sorted and paginated on. Equals `announced_at` whenever that is set. Sources: all five.
+             */
+            event_date: string;
             /**
              * Classification
              * @description Recall severity in each agency's own scale (FDA: 1/2/3, NC = Not Yet Classified; USDA: Class I/II/III, Public Health Alert; USCG: H/L/M/S). Not comparable across agencies. ⚠ USCG's H/L/M/S are passed through from the USCG directory, but their official meaning is not publicly documented (the public USCG recall index shows no severity, and 33 CFR 179 defines none), so do not assume an ordered scale. Best current guess, pending confirmation from USCG: H/M/L roughly map to High/Medium/Low, and S is unverified. Sources: FDA, USDA, USCG (null for CPSC/NHTSA).
@@ -1480,9 +1498,9 @@ export interface operations {
                 classification?: string[] | null;
                 /** @description CPSC and NHTSA have no open/closed status, so they're null and match neither true nor false. */
                 is_active?: boolean | null;
-                /** @description Inclusive, from the start of that day (UTC). */
+                /** @description By last-published date: inclusive, from the start of that day (UTC). The feed sorts by announcement date — use `announced_after` to filter on that axis. */
                 published_after?: string | null;
-                /** @description Inclusive, through the end of that day (UTC). */
+                /** @description By last-published date: inclusive, through the end of that day (UTC). The feed sorts by announcement date — use `announced_before` to filter on that axis. */
                 published_before?: string | null;
                 /** @description Case-insensitive substring match on the recall's primary firm name only (not co-recalled firms). Slower than the indexed filters. */
                 firm?: string | null;
@@ -1573,9 +1591,9 @@ export interface operations {
                 classification?: string[] | null;
                 /** @description CPSC and NHTSA have no open/closed status, so they're null and match neither true nor false. */
                 is_active?: boolean | null;
-                /** @description Inclusive, from the start of that day (UTC). */
+                /** @description By last-published date: inclusive, from the start of that day (UTC). The feed sorts by announcement date — use `announced_after` to filter on that axis. */
                 published_after?: string | null;
-                /** @description Inclusive, through the end of that day (UTC). */
+                /** @description By last-published date: inclusive, through the end of that day (UTC). The feed sorts by announcement date — use `announced_before` to filter on that axis. */
                 published_before?: string | null;
                 /** @description Case-insensitive substring match on the recall's primary firm name only (not co-recalled firms). Slower than the indexed filters. */
                 firm?: string | null;
