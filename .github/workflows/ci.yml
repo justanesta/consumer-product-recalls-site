@@ -24,10 +24,12 @@ jobs:
           node-version: 22
           cache: npm
 
-      # The lockfile is generated with npm 11 (dev default). Node 22 ships npm 10,
-      # which resolves the @emnapi optional wasm deps (under rolldown) differently
-      # and breaks `npm ci`; pin npm 11 so CI matches the committed lockfile.
-      - run: npm install -g npm@11
+      # Pin npm to the EXACT version the lockfile was generated with. Node 22 ships
+      # npm 10, and `npm@11` (latest) re-resolves the @emnapi optional wasm deps
+      # (under rolldown) to a newer version than the lockfile pins, which breaks
+      # `npm ci`. 11.6.2 is lockfile-faithful (it uses the pinned versions instead
+      # of re-resolving), so it matches the committed lockfile deterministically.
+      - run: npm install -g npm@11.6.2
 
       - run: npm ci
 
