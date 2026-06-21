@@ -24,7 +24,15 @@ export default function RecallDetailViewer() {
 
     let alive = true;
     withRetry(() => getRecall(source, id))
-      .then((data) => alive && setState({ status: 'ok', data }))
+      .then((data) => {
+        if (!alive) return;
+        setState({ status: 'ok', data });
+        const name = data.title ?? `${data.source} recall ${data.source_recall_id}`;
+        const suffix = document.title.includes(' · ')
+          ? document.title.slice(document.title.indexOf(' · '))
+          : '';
+        document.title = name + suffix;
+      })
       .catch((error) => {
         if (!alive) return;
         if (error instanceof ApiError && error.isNotFound) setState({ status: 'notfound' });

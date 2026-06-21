@@ -165,8 +165,8 @@ function Browser() {
   const apiError = query.error instanceof ApiError ? query.error : null;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[19rem_1fr]">
-      <aside>
+    <div className="grid gap-6 lg:grid-cols-[19rem_minmax(0,1fr)]">
+      <aside className="min-w-0">
         <FiltersPanel
           value={draft}
           onChange={setDraft}
@@ -175,7 +175,7 @@ function Browser() {
         />
       </aside>
 
-      <div>
+      <div className="min-w-0">
         {chips.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {chips.map((chip) => (
@@ -218,7 +218,7 @@ function Browser() {
               {apiError.isColdStart
                 ? 'The API is waking up.'
                 : apiError.isRateLimited
-                  ? 'Too many requests — please slow down.'
+                  ? 'Too many requests. Please slow down a moment.'
                   : 'Could not load recalls.'}
             </p>
             <p className="mt-1 text-muted">

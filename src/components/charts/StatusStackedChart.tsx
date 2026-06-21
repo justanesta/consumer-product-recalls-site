@@ -8,7 +8,7 @@ import {
   type StatusKey,
 } from '@/lib/charts/dashboard';
 import { SOURCE_ORDER } from '@/lib/domain/sources';
-import { formatNumber } from '@/lib/format';
+import { formatNumber, recallsLabel } from '@/lib/format';
 
 const STATUS_COLOR: Record<StatusKey, string> = {
   active: '#b91c1c',
@@ -23,7 +23,14 @@ export interface StatusStackedChartProps {
 }
 
 export default function StatusStackedChart({ data, title, caption }: StatusStackedChartProps) {
-  const sources = SOURCE_ORDER.filter((s) => data.some((d) => d.source === s));
+  // Order sources by total bar height, descending (biggest at top); canonical
+  // SOURCE_ORDER breaks ties so the layout is stable.
+  const sourceRank = (s: string) => (SOURCE_ORDER as readonly string[]).indexOf(s);
+  const totals = new Map<string, number>();
+  for (const d of data) totals.set(d.source, (totals.get(d.source) ?? 0) + d.count);
+  const sources = [...totals.keys()].sort(
+    (a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0) || sourceRank(a) - sourceRank(b),
+  );
   const height = 56 + sources.length * 42;
 
   const spec = useCallback(
@@ -40,7 +47,17 @@ export default function StatusStackedChart({ data, title, caption }: StatusStack
         legend: true,
         tickFormat: (s: StatusKey) => STATUS_LABEL[s],
       },
-      marks: [Plot.barX(data, { x: 'count', y: 'source', fill: 'status' }), Plot.ruleX([0])],
+      marks: [
+        Plot.barX(data, {
+          x: 'count',
+          y: 'source',
+          fill: 'status',
+          title: (d: StatusDatum) =>
+            `${d.source} · ${STATUS_LABEL[d.status]}\n${recallsLabel(d.count)}`,
+          tip: true,
+        }),
+        Plot.ruleX([0]),
+      ],
     }),
     [data, height, sources],
   );

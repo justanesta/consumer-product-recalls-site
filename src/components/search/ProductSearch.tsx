@@ -48,32 +48,49 @@ function ResultRow({ hit }: { hit: ProductSearchHit }) {
 
 function Search() {
   const [q, setQ] = useState('');
+  const [upc, setUpc] = useState('');
   const [hin, setHin] = useState('');
   const [model, setModel] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [submitted, setSubmitted] = useState<ProductSearchQuery | null>(null);
 
   useEffect(() => {
-    const urlQ = new URLSearchParams(window.location.search).get('q') ?? '';
-    if (urlQ) {
-      setQ(urlQ);
-      setSubmitted({ q: urlQ });
-    }
+    const params = new URLSearchParams(window.location.search);
+    const urlQ = params.get('q') ?? '';
+    const urlUpc = params.get('upc') ?? '';
+    const urlHin = params.get('hin') ?? '';
+    const urlModel = params.get('model') ?? '';
+    if (urlQ) setQ(urlQ);
+    if (urlUpc) setUpc(urlUpc);
+    if (urlHin) setHin(urlHin);
+    if (urlModel) setModel(urlModel);
+    // Open the identifier panel if the link landed on one of its fields.
+    if (urlUpc || urlHin || urlModel) setShowAdvanced(true);
+    const initial: ProductSearchQuery = {};
+    if (urlQ) initial.q = urlQ;
+    if (urlUpc) initial.upc = urlUpc;
+    if (urlHin) initial.hin = urlHin;
+    if (urlModel) initial.model = urlModel;
+    if (Object.keys(initial).length > 0) setSubmitted(initial);
   }, []);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const query: ProductSearchQuery = {};
     if (q.trim()) query.q = q.trim();
+    if (upc.trim()) query.upc = upc.trim();
     if (hin.trim()) query.hin = hin.trim();
     if (model.trim()) query.model = model.trim();
-    if (!query.q && !query.hin && !query.model) {
+    if (!query.q && !query.upc && !query.hin && !query.model) {
       setSubmitted(null);
       return;
     }
     setSubmitted(query);
     const usp = new URLSearchParams();
     if (query.q) usp.set('q', query.q);
+    if (query.upc) usp.set('upc', query.upc);
+    if (query.hin) usp.set('hin', query.hin);
+    if (query.model) usp.set('model', query.model);
     window.history.replaceState(null, '', usp.toString() ? `?${usp}` : window.location.pathname);
   };
 
@@ -111,31 +128,47 @@ function Search() {
             className="text-sm text-brand underline"
             aria-expanded={showAdvanced}
           >
-            {showAdvanced ? 'Hide' : 'Search by exact identifier (HIN / model)'}
+            {showAdvanced ? 'Hide' : 'Search by exact identifier (UPC / model / HIN)'}
           </button>
           {showAdvanced && (
-            <div className="mt-2 grid grid-cols-2 gap-3">
+            <div className="mt-2 space-y-3">
               <div>
-                <label htmlFor="s-model" className="block text-xs text-muted">
-                  Model (NHTSA)
+                <label htmlFor="s-upc" className="block text-xs text-muted">
+                  UPC (product barcode; recall-level, mostly CPSC)
                 </label>
                 <input
-                  id="s-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  id="s-upc"
+                  inputMode="numeric"
+                  value={upc}
+                  onChange={(e) => setUpc(e.target.value)}
+                  placeholder="e.g. 081234567890"
                   className={INPUT}
+                  autoComplete="off"
                 />
               </div>
-              <div>
-                <label htmlFor="s-hin" className="block text-xs text-muted">
-                  HIN (USCG boats)
-                </label>
-                <input
-                  id="s-hin"
-                  value={hin}
-                  onChange={(e) => setHin(e.target.value)}
-                  className={INPUT}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="s-model" className="block text-xs text-muted">
+                    Model (NHTSA)
+                  </label>
+                  <input
+                    id="s-model"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="s-hin" className="block text-xs text-muted">
+                    HIN (USCG boats)
+                  </label>
+                  <input
+                    id="s-hin"
+                    value={hin}
+                    onChange={(e) => setHin(e.target.value)}
+                    className={INPUT}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -150,14 +183,12 @@ function Search() {
       </form>
 
       <p className="mt-3 text-xs text-muted">
-        Keyword search is exact (not fuzzy) across our five sources. UPC lookup is recall-level and
-        sparse (mostly CPSC); for vehicles and boats use the model/HIN fields.
+        Keyword search is exact (not fuzzy) across data from all five sources. UPC lookup is
+        recall-level. For vehicles and boats use the model/HIN fields.
       </p>
 
       <div className="mt-6" aria-live="polite">
-        {submitted === null ? (
-          <p className="text-sm text-muted">Enter a product name or identifier to search.</p>
-        ) : query.isPending ? (
+        {submitted === null ? null : query.isPending ? (
           <p className="text-sm text-muted">Searching…</p>
         ) : apiError ? (
           <div className="rounded-lg border border-amber-500/40 bg-amber-50 p-4 text-sm dark:bg-amber-950/20">
@@ -177,9 +208,10 @@ function Search() {
           <div className="rounded-lg border border-line bg-surface p-6 text-sm">
             <p className="font-medium text-ink">No matches found.</p>
             <p className="mt-1 text-muted">
-              A “no match” only covers our five sources (CPSC, FDA, USDA, NHTSA, USCG) — it does
-              <strong> not</strong> mean a product is safe. Try fewer or different keywords, and see
-              the <a href="/methodology">methodology</a>.
+              A “no match” here only covers these five sources (CPSC, FDA, USDA, NHTSA, USCG). It
+              does
+              <strong> not</strong> mean the product is safe. Try fewer or different keywords, and
+              have a look at the <a href="/methodology">methodology</a>.
             </p>
           </div>
         ) : (

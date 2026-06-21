@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatCompact, formatDate, formatDateTime, formatNumber } from './format';
+import {
+  formatCompact,
+  formatDate,
+  formatDateTime,
+  formatMonth,
+  formatNumber,
+  recallsLabel,
+} from './format';
 
 describe('formatNumber', () => {
   it('thousands-separates and dashes nulls', () => {
@@ -22,5 +29,22 @@ describe('formatDate / formatDateTime', () => {
     expect(formatDate('2026-06-19T04:32:02Z')).toBe('Jun 19, 2026');
     expect(formatDate('not-a-date')).toBe('—');
     expect(formatDateTime('2026-06-19T04:32:02Z')).toBe('Jun 19, 2026, 04:32 UTC');
+  });
+});
+
+describe('formatMonth', () => {
+  it('formats a date to a UTC month label and dashes invalid', () => {
+    expect(formatMonth('2018-09-01')).toBe('Sep 2018');
+    expect(formatMonth('2026-06-19T04:32:02Z')).toBe('Jun 2026');
+    expect(formatMonth(null)).toBe('—');
+    expect(formatMonth('nope')).toBe('—');
+  });
+});
+
+describe('recallsLabel', () => {
+  it('pluralizes and thousands-separates', () => {
+    expect(recallsLabel(1)).toBe('1 recall');
+    expect(recallsLabel(0)).toBe('0 recalls');
+    expect(recallsLabel(93444)).toBe('93,444 recalls');
   });
 });

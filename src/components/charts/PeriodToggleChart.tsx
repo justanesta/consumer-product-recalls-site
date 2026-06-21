@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import Chart from '@/components/Chart';
 import { BRAND_HEX } from '@/lib/charts/colors';
 import type { TrendPoint } from '@/lib/charts/transforms';
-import { formatNumber } from '@/lib/format';
+import { formatDate, formatMonth, formatNumber, recallsLabel } from '@/lib/format';
 
 type Grain = 'week' | 'month' | 'year';
 
@@ -28,6 +28,16 @@ export default function PeriodToggleChart({
   const series = { week, month, year };
   const data = series[grain];
 
+  const periodLabel = useCallback(
+    (iso: string): string =>
+      grain === 'year'
+        ? iso.slice(0, 4)
+        : grain === 'week'
+          ? `Week of ${formatDate(iso)}`
+          : formatMonth(iso),
+    [grain],
+  );
+
   const spec = useCallback(
     (width: number): Plot.PlotOptions => ({
       width,
@@ -44,9 +54,17 @@ export default function PeriodToggleChart({
           fill: BRAND_HEX,
         }),
         Plot.ruleY([0]),
+        Plot.tip(
+          data,
+          Plot.pointerX({
+            x: (d: TrendPoint) => new Date(d.period),
+            y: 'count',
+            title: (d: TrendPoint) => `${periodLabel(d.period)}\n${recallsLabel(d.count)}`,
+          }),
+        ),
       ],
     }),
-    [data, grain],
+    [data, grain, periodLabel],
   );
 
   const table = {

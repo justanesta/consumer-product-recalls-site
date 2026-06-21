@@ -2,25 +2,21 @@
 import Layout from '@/layouts/Layout.astro';
 import Callout from '@/components/Callout.astro';
 import FirmLeaderboard from '@/components/FirmLeaderboard.astro';
-import ClassificationFacetChart from '@/components/charts/ClassificationFacetChart';
 import Choropleth from '@/components/charts/Choropleth';
 import MonthlyTrendChart from '@/components/charts/MonthlyTrendChart';
 import PeriodToggleChart from '@/components/charts/PeriodToggleChart';
 import StatusStackedChart from '@/components/charts/StatusStackedChart';
-import UnitsChart from '@/components/charts/UnitsChart';
 import {
-  getByClassification,
   getByGeography,
   getFirmLeaderboard,
   getMonthlyTrend,
   getRecallsByPeriod,
   getStatusBreakdown,
-  getUnits,
   pingDb,
   withRetry,
 } from '@/lib/api';
-import { classificationBySource, monthlyTrend } from '@/lib/charts/transforms';
-import { geographyData, sourceTrend, statusBySource, unitsData } from '@/lib/charts/dashboard';
+import { monthlyTrend } from '@/lib/charts/transforms';
+import { geographyData, sourceTrend, statusBySource } from '@/lib/charts/dashboard';
 
 // Pre-warm the API (wakes the Fly machine + Neon) before the build-time burst.
 await pingDb();
@@ -34,59 +30,49 @@ const [trendRows, weekRows, monthRows, yearRows] = await Promise.all([
   withRetry(() => getRecallsByPeriod({ grain: 'month', source: 'ALL' })),
   withRetry(() => getRecallsByPeriod({ grain: 'year', source: 'ALL' })),
 ]);
-const [classRows, statusRows, leaders] = await Promise.all([
-  withRetry(() => getByClassification()),
+const [statusRows, leaders] = await Promise.all([
   withRetry(() => getStatusBreakdown()),
   withRetry(() => getFirmLeaderboard({ limit: 15 })),
 ]);
-const [geoDist, geoFirm, unitsRows] = await Promise.all([
+const [geoDist, geoFirm] = await Promise.all([
   withRetry(() => getByGeography({ basis: 'distribution', source: 'ALL' })),
   withRetry(() => getByGeography({ basis: 'firm_registration', source: 'ALL' })),
-  withRetry(() => getUnits()),
 ]);
 
 const trend = sourceTrend(trendRows, { sinceYear: 2010 });
 const week = monthlyTrend(weekRows, { source: 'ALL', sinceYear: 2021 });
 const month = monthlyTrend(monthRows, { source: 'ALL', sinceYear: 2012 });
 const year = monthlyTrend(yearRows, { source: 'ALL' });
-const classification = classificationBySource(classRows);
 const status = statusBySource(statusRows);
 const distGeo = geographyData(geoDist, 'ALL');
 const firmGeo = geographyData(geoFirm, 'ALL');
-const units = unitsData(unitsRows, { sinceYear: 2015 });
 ---
 
 <Layout
   title="Dashboards"
-  description="Trends in U.S. consumer product recalls — volume over time, by source, classification, status, firm, geography, and units."
+  description="Trends in U.S. consumer product recalls: volume over time, and by source, status, firm, and geography."
 >
   <section class="max-w-prose">
     <h1 class="text-3xl font-bold sm:text-4xl">Dashboards</h1>
-    <p class="mt-3 text-muted">
-      Trends across all five sources, refreshed daily from the data pipeline. Every panel reads a
-      single pre-aggregated table — and every chart carries the caveats that keep the numbers
-      honest.
-    </p>
+    <p class="mt-3 text-muted">High-level trends and views from all five data sources.</p>
   </section>
 
   <section class="mt-10">
-    <h2 class="text-2xl font-bold">Recalls over time</h2>
-    <p class="mt-1 text-sm text-muted">All sources combined — switch the time grain.</p>
+    <h2 class="text-2xl font-bold">Over time</h2>
+    <p class="mt-1 text-sm text-muted">By recall announcement date.</p>
     <PeriodToggleChart
       client:visible
       week={week}
       month={month}
       year={year}
       title="Recalls by period (all sources)"
-      caption="The most recent bucket is partial."
+      caption="Most recent bucket is typically partial."
     />
   </section>
 
   <section class="mt-12">
-    <h2 class="text-2xl font-bold">Trend by source</h2>
-    <p class="mt-1 text-sm text-muted">
-      Monthly count (faint) with a 3-month rolling average (bold), per source, since 2010.
-    </p>
+    <h2 class="text-2xl font-bold">By source</h2>
+    <p class="mt-1 text-sm text-muted">Monthly recall count by announcement date.</p>
     <MonthlyTrendChart
       client:visible
       data={trend}
@@ -95,20 +81,9 @@ const units = unitsData(unitsRows, { sinceYear: 2015 });
   </section>
 
   <section class="mt-12">
-    <h2 class="text-2xl font-bold">By classification</h2>
-    <p class="mt-1 text-sm text-muted">Each agency's own severity vocabulary, faceted by source.</p>
-    <ClassificationFacetChart
-      client:visible
-      data={classification}
-      title="Recalls by source-native classification, faceted by source"
-      caption="Classifications are source-native and NOT comparable across agencies."
-    />
-  </section>
-
-  <section class="mt-12">
     <h2 class="text-2xl font-bold">Active vs. inactive</h2>
     <p class="mt-1 text-sm text-muted">
-      Lifecycle status by source — CPSC and NHTSA carry no lifecycle, so they're "No lifecycle".
+      Lifecycle status by source. CPSC and NHTSA carry no lifecycle, so they show "No lifecycle".
     </p>
     <StatusStackedChart
       client:visible
@@ -130,25 +105,19 @@ const units = unitsData(unitsRows, { sinceYear: 2015 });
 
   <section class="mt-12">
     <h2 class="text-2xl font-bold">Geography</h2>
-    <Callout
-      title="Two different questions — read each map on its own terms"
-      tone="warn"
-      class="mt-3"
-    >
+    <Callout title="Two different geographic scopes for recalls" tone="warn" class="mt-3">
       <p>
-        Recall geography has <strong>two distinct lenses</strong> that are <em>not</em> interchangeable.
-        <strong>Distribution</strong> is where a product was sent (FDA/USDA only). <strong
-          >Firm registration</strong
-        >
-        is where the responsible firm is registered — <em>not</em> where the product went or where harm
-        occurred. We show them as two separate maps, never one toggle.
+        Recall geography has two distinct lenses that are not interchangeable.
+        <strong>Distribution</strong> is where a product was sent (currently only available in FDA/USDA
+        data). <strong>Firm registration</strong> is where the responsible firm is registered, not where
+        the product was delivered or where harm occurred.
       </p>
     </Callout>
 
     <div class="mt-6 grid gap-8 lg:grid-cols-2">
       <div>
         <h3 class="text-lg font-semibold">Distribution lens</h3>
-        <p class="mt-1 text-sm text-muted">Where recalled products were distributed (FDA/USDA).</p>
+        <p class="mt-1 text-sm text-muted">Where recalled products were distributed.</p>
         <Choropleth
           client:visible
           data={distGeo}
@@ -159,30 +128,15 @@ const units = unitsData(unitsRows, { sinceYear: 2015 });
       </div>
       <div>
         <h3 class="text-lg font-semibold">Firm-registration lens</h3>
-        <p class="mt-1 text-sm text-muted">
-          Where the responsible firm is registered (not where harm occurred).
-        </p>
+        <p class="mt-1 text-sm text-muted">Where the responsible firm is registered.</p>
         <Choropleth
           client:visible
           data={firmGeo}
           scheme="purples"
           title="Recalls by firm-registration state"
-          caption="Registration location ≠ where the product was sold or caused harm."
+          caption="A single recall can interact with multiple firms in different roles (importer, distributor, manufacturer, etc.)."
         />
       </div>
     </div>
-  </section>
-
-  <section class="mt-12">
-    <h2 class="text-2xl font-bold">Units recalled</h2>
-    <p class="mt-1 text-sm text-muted">
-      Reported magnitude per source and unit category, by month (since 2015).
-    </p>
-    <UnitsChart
-      client:visible
-      data={units}
-      title="Units recalled by source and unit category"
-      caption="A recall-magnitude measure (not unique items), on a log scale. Units are NOT comparable across sources or categories — never sum them."
-    />
   </section>
 </Layout>

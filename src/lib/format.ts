@@ -27,6 +27,19 @@ export function formatDate(iso?: string | null): string {
   });
 }
 
+/** "1 recall" / "2 recalls" (thousands-separated) — for chart tooltips and counts. */
+export function recallsLabel(count: number): string {
+  return `${formatNumber(count)} ${count === 1 ? 'recall' : 'recalls'}`;
+}
+
+/** ISO timestamp/date -> "Jun 2026" (UTC month label); em-dash for null/invalid. */
+export function formatMonth(iso?: string | null): string {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 /** ISO timestamp -> "Jun 19, 2026, 04:32 UTC"; em-dash for null/invalid. */
 export function formatDateTime(iso?: string | null): string {
   if (!iso) return '—';

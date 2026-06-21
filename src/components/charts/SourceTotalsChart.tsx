@@ -2,8 +2,8 @@ import * as Plot from '@observablehq/plot';
 import { useCallback } from 'react';
 import Chart from '@/components/Chart';
 import type { SourceTotal } from '@/lib/charts/transforms';
-import { sourceColor } from '@/lib/domain/sources';
-import { formatNumber } from '@/lib/format';
+import { getSourceMeta, sourceColor } from '@/lib/domain/sources';
+import { formatNumber, recallsLabel } from '@/lib/format';
 
 export interface SourceTotalsChartProps {
   data: SourceTotal[];
@@ -26,6 +26,9 @@ export default function SourceTotalsChart({ data, title, caption }: SourceTotals
           x: 'count',
           y: 'source',
           fill: (d: SourceTotal) => sourceColor(d.source),
+          title: (d: SourceTotal) =>
+            `${getSourceMeta(d.source)?.name ?? d.source}\n${recallsLabel(d.count)}`,
+          tip: true,
         }),
         Plot.ruleX([0]),
         Plot.text(data, {

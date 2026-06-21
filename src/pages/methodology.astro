@@ -6,7 +6,7 @@ const sources = [
   {
     code: 'CPSC',
     name: 'Consumer Product Safety Commission',
-    covers: 'Consumer products — toys, electronics, household goods',
+    covers: 'Consumer products: toys, electronics, household goods',
     classification: '—',
     lifecycle: '—',
   },
@@ -19,7 +19,7 @@ const sources = [
   },
   {
     code: 'USDA',
-    name: 'USDA Food Safety & Inspection Service',
+    name: 'U.S. Department of Agriculture',
     covers: 'Meat, poultry, processed egg products',
     classification: 'Class I / II / III, Public Health Alert',
     lifecycle: 'Active / Closed',
@@ -42,19 +42,48 @@ const sources = [
 ---
 
 <Layout
-  title="Methodology & caveats"
-  description="What this recalls data is and isn't: sources, source-native classifications, the two geography lenses, and the honesty caveats."
+  title="Methodology & data details"
+  description="What this recalls data is and isn't: the sources, their source-native classifications, the two geography lenses, and the data details."
 >
   <div class="max-w-prose">
-    <h1 class="text-3xl font-bold sm:text-4xl">Methodology &amp; caveats</h1>
+    <h1 class="text-3xl font-bold sm:text-4xl">Methodology &amp; data details</h1>
     <p class="mt-3 text-muted">
-      This site aggregates five independent U.S. federal recall feeds into one searchable view. They
-      use different vocabularies, scopes, and lifecycles — so we keep each source's data
-      <strong>source-native</strong> and never force a false common scale. Here's what that means.
+      This site brings together five independent U.S. federal agencies that regulate consumer
+      products into one database. The sources use different terminology, scope, and lifecycles when
+      reporting their product recalls. For most fields the data is kept
+      <strong>source-native</strong>, and only combined where it clearly lines up.
     </p>
 
     <h2 class="mt-8 text-2xl font-bold">The five sources</h2>
-    <div class="mt-3 overflow-x-auto">
+
+    <ul class="mt-3 space-y-3 md:hidden">
+      {
+        sources.map((s) => (
+          <li class="rounded-lg border border-line p-3">
+            <div class="font-medium">
+              {s.code}
+              <span class="text-xs font-normal text-muted"> · {s.name}</span>
+            </div>
+            <dl class="mt-2 space-y-1 text-sm">
+              <div class="flex gap-2">
+                <dt class="w-24 shrink-0 text-muted">Covers</dt>
+                <dd>{s.covers}</dd>
+              </div>
+              <div class="flex gap-2">
+                <dt class="w-24 shrink-0 text-muted">Class.</dt>
+                <dd class="font-mono text-xs">{s.classification}</dd>
+              </div>
+              <div class="flex gap-2">
+                <dt class="w-24 shrink-0 text-muted">Lifecycle</dt>
+                <dd class="text-xs">{s.lifecycle}</dd>
+              </div>
+            </dl>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="mt-3 hidden overflow-x-auto md:block">
       <table class="w-full min-w-[40rem] border-collapse text-left text-sm">
         <thead class="border-b border-line text-xs uppercase text-muted">
           <tr>
@@ -82,65 +111,77 @@ const sources = [
       </table>
     </div>
 
-    <h2 class="mt-10 text-2xl font-bold">Honesty caveats</h2>
+    <h2 class="mt-10 text-2xl font-bold">Data details</h2>
 
     <h3 class="mt-6 text-lg font-semibold">Classifications are source-native</h3>
     <p class="mt-1 text-muted">
       FDA uses <code>1/2/3/NC</code>, USDA uses <code>Class I/II/III</code> plus
       <code>Public Health Alert</code>, USCG uses <code>H/M/L/S</code>, and CPSC and NHTSA have
-      none. These are <strong>not comparable across agencies</strong> — an FDA "Class 2" is not a USDA
-      "Class II". We never show a single global classification legend.
+      none. These are <strong>not inherently comparable across agencies</strong>. An FDA "Class 2"
+      is not necessarily a USDA "Class II". This is why there is no single overall classification
+      legend.
+    </p>
+    <p class="mt-2 text-muted">
+      USCG's <code>H/M/L/S</code> codes are a special case: their official meaning is
+      <strong>not publicly documented</strong>, either on the Coast Guard's site or in the legal
+      text laying out its regulating authority. We pass them through verbatim and order them
+      provisionally:
+      <code>H/M/L</code> are assumed to be High/Medium/Low, with <code>S</code> shown last and left uncolored.
+      This is pending confirmation from the Coast Guard, and they are not a settled scale.
     </p>
 
-    <h3 class="mt-6 text-lg font-semibold">Status is tri-state</h3>
+    <h3 class="mt-6 text-lg font-semibold">Trends are dated by announcement</h3>
     <p class="mt-1 text-muted">
-      Only FDA, USDA, and USCG track an active/inactive lifecycle. CPSC and NHTSA carry none, so
-      their recalls show <strong>"No lifecycle"</strong> — not a false "Inactive".
+      Every time-series visualization on this site buckets each recall by its
+      <strong>announcement / initiation date</strong>, and reflects when recalls actually happened,
+      not when a record was last published. The browse and RSS lists are separately ordered by the
+      last date the source published or updated the recall, to try to give newly edited recalls more
+      primacy.
+    </p>
+
+    <h3 class="mt-6 text-lg font-semibold">Recall status is only applicable for three sources</h3>
+    <p class="mt-1 text-muted">
+      Only FDA, USDA, and USCG track an active/inactive lifecycle. CPSC and NHTSA do not, so their
+      recalls show <strong>"No lifecycle"</strong>, not a false "Inactive".
     </p>
 
     <h3 class="mt-6 text-lg font-semibold">Geography has two distinct lenses</h3>
     <p class="mt-1 text-muted">
-      <strong>Distribution</strong> (where a product was sent; FDA/USDA only) and
-      <strong>firm registration</strong> (where the responsible firm is registered) answer different questions.
-      Registration is <em>not</em> where the product went or where harm occurred. On the
-      <a href="/dashboards">dashboards</a> these are two separate maps, never one toggle. Also, a recall
-      counts in every state it touches, so per-state counts sum to more than the total.
+      <strong>Distribution</strong> is where a product was sent, and is currently only available for recalls
+      from the FDA and USDA. <strong>Firm registration</strong> is where the responsible firm is physically
+      registered. These geographic slices answer different questions. Registration is not where the product
+      went or where harm occurred. A recall counts in every state or firm it interacts with, so per-state
+      and per-firm counts sum to more than the total.
     </p>
 
     <h3 class="mt-6 text-lg font-semibold">Units recalled aren't comparable</h3>
     <p class="mt-1 text-muted">
-      Reported units (NHTSA/USCG) and quantities (FDA/USDA) are a recall-magnitude measure, not
-      unique items, and use incommensurable categories (count / weight / volume). Never sum them
-      across sources or categories.
+      Reported units are available for select recalls from the NHTSA and USCG. Quantities are
+      available for select recalls from the FDA and USDA. They are a recall-magnitude measure, not
+      unique items, and use incommensurable categories (e.g., count vs. weight vs. volume). They
+      cannot be summed across sources or categories.
     </p>
 
     <h3 class="mt-6 text-lg font-semibold">UPC matching is recall-level and sparse</h3>
     <p class="mt-1 text-muted">
-      There is no per-product UPC. UPC search matches a recall-level list that is CPSC-sourced and
-      covers only ~5% of CPSC recalls. For vehicles and boats, use the model and HIN fields.
+      There is no per-product UPC yet. UPC search matches a recall-level list that is CPSC-sourced
+      and covers only ~5% of CPSC recalls.
     </p>
 
     <h3 class="mt-6 text-lg font-semibold">"Revised" has no date</h3>
     <p class="mt-1 text-muted">
-      A recall marked <strong>revised</strong> means the pipeline detected an editorially-meaningful change
-      since first ingest — it is observed-edit evidence, not an official agency amendment, and carries
-      no date.
+      A recall marked <strong>revised</strong> means the data pipeline detected an editorially-meaningful
+      change since first ingest. The revision is observed-edit evidence, not an official agency amendment,
+      and currently carries no date.
     </p>
 
     <Callout title="Counts reflect reporting, not risk" class="mt-8">
       <p>
-        A source with more recalls isn't "less safe" — counts reflect each agency's reporting scope,
-        history, and granularity. Treat cross-source comparisons with care, and read the
-        <a href="/api">API reference</a> for field-level provenance. A "no match" in
+        A source or product with more recalls isn't necessarily "less safe". Recall counts reflect
+        each agency's reporting scope, history, and granularity. Treat cross-source comparisons with
+        care, and read the <a href="/api">API reference</a> for field-level provenance. A "no match" in
         <a href="/search">search</a> only covers these five sources.
       </p>
     </Callout>
-
-    <h2 class="mt-10 text-2xl font-bold">How it's built</h2>
-    <p class="mt-1 text-muted">
-      A Python data pipeline ingests the five feeds nightly into Postgres gold tables; a FastAPI
-      service serves them read-only; and this site pulls the slow-moving aggregates at build time
-      and fetches per-recall data live. See <a href="/about">about</a>.
-    </p>
   </div>
 </Layout>

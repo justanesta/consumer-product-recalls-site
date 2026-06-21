@@ -52,3 +52,14 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Observable Plot tooltips: the tip bubble defaults to a white fill, which leaves
+   light text unreadable in dark mode. Tie the bubble to the theme surface and the
+   text to the ink color so both modes read cleanly. Unlayered so it beats Plot's
+   presentation attributes. */
+g[aria-label='tip'] {
+  fill: rgb(var(--color-surface));
+}
+g[aria-label='tip'] text {
+  fill: rgb(var(--color-ink));
+}

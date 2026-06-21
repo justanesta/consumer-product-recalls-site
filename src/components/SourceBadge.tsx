@@ -1,3 +1,4 @@
+import SourceIcon from '@/components/SourceIcon';
 import { getSourceMeta } from '@/lib/domain/sources';
 import { cn } from '@/lib/utils/cn';
 
@@ -7,10 +8,9 @@ export interface SourceBadgeProps {
   className?: string;
 }
 
-/** Source pill: a fixed-color dot (the only colored element, for contrast) + the code/name. */
+/** Source pill: a category glyph tinted to the source color (the colored element) + the code/name. */
 export default function SourceBadge({ source, full = false, className }: SourceBadgeProps) {
   const meta = getSourceMeta(source);
-  const hex = meta?.hex ?? '#64748b';
   return (
     <span
       className={cn(
@@ -19,11 +19,7 @@ export default function SourceBadge({ source, full = false, className }: SourceB
       )}
       title={meta?.name ?? source}
     >
-      <span
-        className="h-2 w-2 shrink-0 rounded-full"
-        style={{ background: hex }}
-        aria-hidden="true"
-      />
+      <SourceIcon source={source} className="h-3.5 w-3.5" />
       {full ? (meta?.name ?? source) : (meta?.label ?? source)}
     </span>
   );
