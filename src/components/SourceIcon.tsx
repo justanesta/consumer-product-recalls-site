@@ -25,11 +25,15 @@ const PATHS: Record<string, React.ReactNode> = {
       <circle cx="16.5" cy="17.2" r="1.7" />
     </>
   ),
-  // USDA (FSIS) — meat & poultry: a drumstick (meat blob + knobbed bone).
+  // USDA (FSIS) — meat & poultry: a pig face (snout + ears).
   USDA: (
     <>
-      <path d="M15.45 15.4c-2.13.65-4.3.32-5.7-1.1-2.29-2.27-1.76-6.5 1.17-9.42 2.93-2.93 7.15-3.46 9.42-1.17 1.42 1.41 1.74 3.57 1.1 5.71-1.4-.51-3.26-.02-4.64 1.36-1.38 1.38-1.87 3.23-1.35 4.62z" />
-      <path d="M11.25 15.6l-2.16 2.16a2.5 2.5 0 1 1-4.56 1.73 2.49 2.49 0 0 1 1.41-2.61" />
+      <path d="M7.6 7.3 6 4.5l3.1 1.5" />
+      <path d="M16.4 7.3 18 4.5l-3.1 1.5" />
+      <path d="M12 6c3.6 0 6.5 2.5 6.5 5.7S15.6 17.5 12 17.5 5.5 14.9 5.5 11.7 8.4 6 12 6Z" />
+      <ellipse cx="12" cy="12.9" rx="2.8" ry="2" />
+      <path d="M11 12.9h.01M13 12.9h.01" />
+      <path d="M9.6 10.2h.01M14.4 10.2h.01" />
     </>
   ),
   // USCG — recreational boats: an anchor.
