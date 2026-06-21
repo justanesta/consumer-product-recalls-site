@@ -7,7 +7,7 @@ const SITE = 'https://consumer-product-recalls.info';
 export async function GET(context: APIContext) {
   const page = await withRetry(() => listRecalls({ limit: 50 }));
   return rss({
-    title: 'Consumer Product Recalls — latest',
+    title: 'Latest Consumer Product Recalls',
     description:
       'The 50 most recent U.S. consumer product recalls across CPSC, FDA, USDA, NHTSA, and USCG.',
     site: context.site ?? SITE,
