@@ -117,25 +117,25 @@ export default function FiltersPanel({ value, onChange, onApply, onClear }: Prop
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="f-after" className="block text-sm font-medium">
-            Published after
+            Announced after
           </label>
           <input
             id="f-after"
             type="date"
-            value={value.published_after}
-            onChange={(e) => set({ published_after: e.target.value })}
+            value={value.announced_after}
+            onChange={(e) => set({ announced_after: e.target.value })}
             className={INPUT}
           />
         </div>
         <div>
           <label htmlFor="f-before" className="block text-sm font-medium">
-            Published before
+            Announced before
           </label>
           <input
             id="f-before"
             type="date"
-            value={value.published_before}
-            onChange={(e) => set({ published_before: e.target.value })}
+            value={value.announced_before}
+            onChange={(e) => set({ announced_before: e.target.value })}
             className={INPUT}
           />
         </div>

@@ -9,8 +9,9 @@ export interface RecallFilters {
   classification: string[];
   status: StatusFilter;
   distribution_scope: DistributionScope[];
-  published_after: string;
-  published_before: string;
+  /** Announce-date range (the feed's sort axis). Maps to API announced_after/before; URL keys after/before. */
+  announced_after: string;
+  announced_before: string;
   firm: string;
 }
 
@@ -20,8 +21,8 @@ export const EMPTY_FILTERS: RecallFilters = {
   classification: [],
   status: 'any',
   distribution_scope: [],
-  published_after: '',
-  published_before: '',
+  announced_after: '',
+  announced_before: '',
   firm: '',
 };
 
@@ -42,8 +43,8 @@ export function filtersToSearchParams(f: RecallFilters): URLSearchParams {
   if (f.classification.length) p.set('classification', f.classification.join(','));
   if (f.status !== 'any') p.set('status', f.status);
   if (f.distribution_scope.length) p.set('scope', f.distribution_scope.join(','));
-  if (f.published_after) p.set('after', f.published_after);
-  if (f.published_before) p.set('before', f.published_before);
+  if (f.announced_after) p.set('after', f.announced_after);
+  if (f.announced_before) p.set('before', f.announced_before);
   if (f.firm.trim()) p.set('firm', f.firm.trim());
   return p;
 }
@@ -59,8 +60,8 @@ export function searchParamsToFilters(p: URLSearchParams): RecallFilters {
     distribution_scope: splitCsv(p.get('scope')).filter((s): s is DistributionScope =>
       SCOPE_VALUES.includes(s),
     ),
-    published_after: p.get('after') ?? '',
-    published_before: p.get('before') ?? '',
+    announced_after: p.get('after') ?? '',
+    announced_before: p.get('before') ?? '',
     firm: p.get('firm') ?? '',
   };
 }
@@ -78,8 +79,8 @@ export function filtersToQuery(
   if (f.status === 'active') query.is_active = true;
   else if (f.status === 'inactive') query.is_active = false;
   if (f.distribution_scope.length) query.distribution_scope = f.distribution_scope;
-  if (f.published_after) query.published_after = f.published_after;
-  if (f.published_before) query.published_before = f.published_before;
+  if (f.announced_after) query.announced_after = f.announced_after;
+  if (f.announced_before) query.announced_before = f.announced_before;
   if (f.firm.trim()) query.firm = f.firm.trim();
   return query;
 }

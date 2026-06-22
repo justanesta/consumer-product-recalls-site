@@ -48,7 +48,11 @@ The full build plan is in `PLAN.md`; the reconciled source drafts are in `projec
 
 `classification` is source-native (never a global legend); `is_active` is tri-state (Active/Inactive/n.a.);
 UPC is recall-level only; geography has two distinct lenses (two captioned charts, never a toggle); units
-are not cross-source comparable; edit history is `has_been_edited`-only (no dates).
+are not cross-source comparable; edit history is `has_been_edited`-only (no dates). The recalls feed is
+**newest-first by announce date** (`event_date` = the API's `coalesce(announced_at, published_at)`, not the
+last-published date), and the list's date column + the "Announced after/before" filters use that axis;
+`published_at` stays on the detail page (shown beside "Announced") and as the `published_after/before`
+filter. Product search stays published-date-sorted (no `event_date` on that mart).
 
 ## Testing
 

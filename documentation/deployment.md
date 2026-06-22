@@ -5,12 +5,12 @@ the repo, CI, and config are ready; the steps below wire them to your accounts.
 
 ## Environment / secrets
 
-| Name                        | Where                          | Purpose                                                                                          |
-| --------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `PUBLIC_API_URL`            | Pages build env var            | API base URL (e.g. `https://api.consumer-product-recalls.info`). Defaults to the `.fly.dev` URL. |
+| Name                        | Where                          | Purpose                                                                                                 |
+| --------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `PUBLIC_API_URL`            | Pages build env var            | API base URL (e.g. `https://api.consumer-product-recalls.info`). Defaults to the `.fly.dev` URL.        |
 | `NODE_VERSION`              | Pages build env var            | Pin the build's Node (`22`). Astro 5 needs ≥18.20.8 / 20.3 / 22, and Cloudflare's default can be older. |
-| `PUBLIC_CF_ANALYTICS_TOKEN` | Pages build env var (optional) | Cloudflare Web Analytics token (cookieless). Analytics is off when unset.                        |
-| `CF_PAGES_DEPLOY_HOOK`      | **GitHub repo secret**         | The Pages deploy-hook URL the daily-rebuild cron POSTs. Never inline it.                         |
+| `PUBLIC_CF_ANALYTICS_TOKEN` | Pages build env var (optional) | Cloudflare Web Analytics token (cookieless). Analytics is off when unset.                               |
+| `CF_PAGES_DEPLOY_HOOK`      | **GitHub repo secret**         | The Pages deploy-hook URL the daily-rebuild cron POSTs. Never inline it.                                |
 
 ## 1. Connect the repo to Cloudflare Pages
 

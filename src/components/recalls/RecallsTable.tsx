@@ -22,7 +22,7 @@ export default function RecallsTable({ items }: { items: RecallSummary[] }) {
             </a>
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
               <SourceBadge source={r.source} />
-              <span className="tabular-nums">{formatDate(r.published_at)}</span>
+              <span className="tabular-nums">{formatDate(r.event_date)}</span>
               <ClassificationBadge source={r.source} classification={r.classification} />
               <StatusBadge isActive={r.is_active} />
             </div>
@@ -65,7 +65,7 @@ export default function RecallsTable({ items }: { items: RecallSummary[] }) {
                 className="border-b border-line last:border-0 hover:bg-surface"
               >
                 <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted">
-                  {formatDate(r.published_at)}
+                  {formatDate(r.event_date)}
                 </td>
                 <td className="px-3 py-2">
                   <SourceBadge source={r.source} />

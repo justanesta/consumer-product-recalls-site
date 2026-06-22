@@ -13,7 +13,7 @@ export type PageRecallSearchHit = components['schemas']['Page_RecallSearchHit_']
 export type RecallListQuery = NonNullable<paths['/recalls']['get']['parameters']['query']>;
 export type RecallSearchQuery = NonNullable<paths['/recalls/search']['get']['parameters']['query']>;
 
-/** `GET /recalls` — newest-first, keyset-paginated list. All filters optional. */
+/** `GET /recalls` — newest-first by announce date (`event_date`), keyset-paginated. All filters optional. */
 export function listRecalls(query: RecallListQuery = {}, signal?: AbortSignal) {
   return unwrap(client.GET('/recalls', { params: { query }, signal }));
 }
